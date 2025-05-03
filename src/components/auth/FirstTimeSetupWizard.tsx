@@ -8,7 +8,7 @@ import TotpVerification from '@/components/settings/totp/TotpVerification';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Apple, QrCode, Smartphone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { createTotpSecret, getTotpOtpAuthUrl } from '@/utils/authHelpers';
+import { createTotpSecret, getTotpOtpAuthUrl } from '@/utils/auth/totpHelpers';
 
 interface FirstTimeSetupWizardProps {
   userId: string;
