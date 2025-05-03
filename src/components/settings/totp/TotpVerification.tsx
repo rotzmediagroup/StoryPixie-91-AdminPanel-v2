@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTotpSetup } from './TotpSetupContext';
-import { verifyTotpCode, isTotpEnabled } from '@/utils/authHelpers';
+import { verifyTotpCode, isTotpEnabled } from '@/utils/auth/totpHelpers';
 import { toast } from '@/hooks/use-toast';
 
 interface TotpVerificationProps {
