@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useTotpSetup } from './TotpSetupContext';
-import { disableTotp } from '@/utils/authHelpers';
+import { disableTotp } from '@/utils/auth/totpHelpers';
 import { toast } from '@/hooks/use-toast';
 
 interface TotpDisableProps {
