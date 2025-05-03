@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useTotpSetup } from './TotpSetupContext';
-import { createTotpSecret, getTotpOtpAuthUrl } from '@/utils/authHelpers';
+import { createTotpSecret, getTotpOtpAuthUrl } from '@/utils/auth/totpHelpers';
 
 interface TotpSetupStartProps {
   userId: string;
