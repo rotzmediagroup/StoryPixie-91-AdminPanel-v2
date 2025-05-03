@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "storypixie-adminpanel-91-v2",
+    "site": "cp-storypixie-91-v2",
     "public": "dist",
     "ignore": [
       "firebase.json",
