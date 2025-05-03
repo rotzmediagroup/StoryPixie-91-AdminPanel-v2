@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
+import logo from "@/assets/logo.png";
 
 // Import Sidebar content without the full Sidebar component wrapper
 import { SidebarContent } from './SidebarContent';
@@ -50,7 +50,7 @@ const Header = () => {
           
           <div className="h-8 w-auto mr-3 hidden md:block">
             <img 
-              src="/lovable-uploads/da8a1305-1c08-45c1-b924-b18e1134d27f.png" 
+              src={logo} 
               alt="Story Pixie Logo"
               className="h-full object-contain" 
             />

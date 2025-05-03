@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { verifyTotpCode } from '@/utils/auth/totpHelpers';
+import logo from "@/assets/logo.png";
 
 interface TwoFactorAuthFormProps {
   pendingUserId: string;
@@ -59,7 +59,7 @@ const TwoFactorAuthForm = ({ pendingUserId, onCancel, onSuccess }: TwoFactorAuth
           <div className="flex justify-center">
             <div className="w-32 sm:w-40">
               <img 
-                src="/lovable-uploads/da8a1305-1c08-45c1-b924-b18e1134d27f.png" 
+                src={logo} 
                 alt="Story Pixie Logo"
                 className="w-full object-contain" 
               />

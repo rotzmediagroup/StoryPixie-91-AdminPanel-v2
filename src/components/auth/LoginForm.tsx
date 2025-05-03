@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import logo from "@/assets/logo.png";
 
 interface LoginFormProps {
   email: string;
@@ -32,7 +32,7 @@ const LoginForm = ({
           <div className="flex justify-center">
             <div className="w-32 sm:w-40">
               <img 
-                src="/lovable-uploads/da8a1305-1c08-45c1-b924-b18e1134d27f.png" 
+                src={logo} 
                 alt="Story Pixie Logo"
                 className="w-full object-contain" 
               />
