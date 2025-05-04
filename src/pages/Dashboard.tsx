@@ -1,29 +1,8 @@
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
-
-// Placeholder components for stats and charts during rebuild
-const PlaceholderStats = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-    {[...Array(5)].map((_, i) => (
-      <div key={i} className="border rounded-lg p-4 bg-card text-card-foreground shadow-sm h-24 animate-pulse">
-        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-        <div className="h-6 bg-muted rounded w-1/2"></div>
-      </div>
-    ))}
-  </div>
-);
-
-const PlaceholderCharts = () => (
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div className="border rounded-lg p-4 bg-card text-card-foreground shadow-sm h-64 animate-pulse">
-      <div className="h-full bg-muted rounded"></div>
-    </div>
-    <div className="border rounded-lg p-4 bg-card text-card-foreground shadow-sm h-64 animate-pulse">
-      <div className="h-full bg-muted rounded"></div>
-    </div>
-  </div>
-);
+import DashboardStats from '@/components/dashboard/DashboardStats'; // Import real stats component
+import DashboardCharts from '@/components/dashboard/DashboardCharts'; // Import real charts component
 
 const Dashboard = () => {
   const { currentUser, isLoading } = useAuth(); // Use isLoading from auth context
@@ -40,7 +19,7 @@ const Dashboard = () => {
     );
   }
 
-  // Basic dashboard structure for rebuild
+  // Use real dashboard components
   return (
     <div className="space-y-6">
       <DashboardHeader 
@@ -48,19 +27,21 @@ const Dashboard = () => {
         description={`Welcome back, ${currentUser?.name || 'Admin'}!`}
       />
       
-      {/* Placeholder Stats Cards */}
-      <PlaceholderStats />
+      {/* Real Stats Cards */}
+      <DashboardStats />
       
-      {/* Placeholder Charts */}
-      <PlaceholderCharts />
+      {/* Real Charts */}
+      <DashboardCharts />
 
-      {/* Add more core dashboard elements here as needed */}
+      {/* Remove or update the rebuild message */}
+      {/* 
       <div className="border rounded-lg p-4 bg-card text-card-foreground shadow-sm">
-        <h3 className="text-lg font-semibold mb-2">Admin Panel Rebuild</h3>
+        <h3 className="text-lg font-semibold mb-2">Admin Panel Enhancements</h3>
         <p className="text-muted-foreground">
-          Core functionality is being rebuilt. More features will be added soon.
+          Displaying real-time statistics and charts.
         </p>
-      </div>
+      </div> 
+      */}
     </div>
   );
 };
