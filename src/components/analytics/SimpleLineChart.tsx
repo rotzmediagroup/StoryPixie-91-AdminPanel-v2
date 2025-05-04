@@ -1,4 +1,4 @@
-import React from \'react\';
+import React from 'react';
 import {
   LineChart,
   Line,
@@ -8,8 +8,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from \'recharts\';
-import { Card, CardContent, CardHeader, CardTitle } from \'@/components/ui/card\';
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface TimeSeriesData {
   date: string;
@@ -19,8 +19,8 @@ interface TimeSeriesData {
 interface SimpleLineChartProps {
   data: TimeSeriesData[];
   title: string;
-  lineKey: string; // e.g., \'Signups\', \'Stories Generated\'
-  lineColor: string; // e.g., \'#8884d8\'
+  lineKey: string; // e.g., 'Signups', 'Stories Generated'
+  lineColor: string; // e.g., '#8884d8'
 }
 
 const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, title, lineKey, lineColor }) => {
@@ -31,7 +31,7 @@ const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, title, lineKey,
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className=\"text-muted-foreground\">No data available for this period.</p>
+          <p className="text-muted-foreground">No data available for this period.</p>
         </CardContent>
       </Card>
     );
@@ -43,7 +43,7 @@ const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, title, lineKey,
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width=\"100%\" height={300}>
+        <ResponsiveContainer width="100%" height={300}>
           <LineChart
             data={data}
             margin={{
@@ -53,14 +53,14 @@ const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, title, lineKey,
               bottom: 5,
             }}
           >
-            <CartesianGrid strokeDasharray=\"3 3\" />
-            <XAxis dataKey=\"date\" fontSize={12} tickLine={false} axisLine={false} />
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
             <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip />
             <Legend />
             <Line 
-              type=\"monotone\" 
-              dataKey=\"count\" 
+              type="monotone" 
+              dataKey="count" 
               name={lineKey} 
               stroke={lineColor} 
               activeDot={{ r: 8 }} 
