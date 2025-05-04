@@ -1,38 +1,27 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast'; // Changed import path
 
 // Import components
 import LoginForm from '@/components/auth/LoginForm';
-import TwoFactorAuthForm from '@/components/auth/TwoFactorAuthForm';
-import FirstTimeSetupWizard from '@/components/auth/FirstTimeSetupWizard';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [showTwoFactor, setShowTwoFactor] = useState(false);
   
-  const { 
-    login, 
-    completeLogin, 
-    currentUser, 
-    isFirstTimeLogin,
-    pendingUserId,
-    pendingUserEmail
-  } = useAuth();
-  
+  const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth(); // Use isAuthenticated and isLoading from context
   const navigate = useNavigate();
 
+  // Redirect if already authenticated
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (currentUser) {
-      navigate('/');
+    if (isAuthenticated) {
+      console.log('[Login] Already authenticated, redirecting to /');
+      navigate('/', { replace: true });
     }
-  }, [currentUser, navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,62 +29,34 @@ const Login = () => {
     setAuthError(null);
 
     try {
-      console.log('Attempting login with:', email);
-      const { success, requiresTwoFactor, userId } = await login(email, password);
+      console.log('[Login] Attempting login with:', email);
+      const result = await login(email, password);
 
-      if (success) {
-        if (requiresTwoFactor && userId) {
-          console.log('2FA required for user:', userId);
-          // User needs to complete 2FA
-          setShowTwoFactor(true);
-        } else {
-          // No 2FA required, proceed with login
-          toast({
-            title: "Login successful",
-            description: "Welcome to Story Pixie Admin Panel",
-          });
-          
-          navigate('/');
-        }
+      if (result.success) {
+        console.log('[Login] Login successful (Firebase auth done, listener will handle state)');
+        // No need to navigate here, the ProtectedRoute/PublicRoute will handle redirection
+        // based on the updated isAuthenticated state from the listener.
+        toast({
+          title: "Login Initiated",
+          description: "Checking credentials...",
+        });
       } else {
-        setAuthError("Invalid email or password. Please try again.");
+        console.log('[Login] Login failed:', result.error);
+        setAuthError(result.error || "Invalid email or password. Please try again.");
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setAuthError((error as Error).message || "An error occurred during login");
+      console.error('[Login] Unexpected login error:', error);
+      setAuthError((error as Error).message || "An unexpected error occurred during login");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleTwoFactorCancel = () => {
-    setShowTwoFactor(false);
-    setAuthError("Two-factor authentication was cancelled.");
-  };
-
-  const handleTwoFactorSuccess = () => {
-    completeLogin();
-  };
-
-  // Show first-time setup wizard for new users
-  if (isFirstTimeLogin && pendingUserId && pendingUserEmail) {
-    return (
-      <FirstTimeSetupWizard 
-        userId={pendingUserId} 
-        userEmail={pendingUserEmail}
-      />
-    );
-  }
-
-  // Show 2FA form if needed
-  if (showTwoFactor && pendingUserId) {
-    return (
-      <TwoFactorAuthForm 
-        pendingUserId={pendingUserId} 
-        onCancel={handleTwoFactorCancel}
-        onSuccess={handleTwoFactorSuccess}
-      />
-    );
+  // If auth state is still loading, show a simple loading indicator
+  if (isAuthLoading) {
+     return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+    </div>;
   }
 
   // Show login form
@@ -103,7 +64,7 @@ const Login = () => {
     <LoginForm
       email={email}
       password={password}
-      isLoading={isLoading}
+      isLoading={isLoading} // Use local loading state for the form submission itself
       authError={authError}
       onEmailChange={setEmail}
       onPasswordChange={setPassword}
@@ -113,3 +74,4 @@ const Login = () => {
 };
 
 export default Login;
+

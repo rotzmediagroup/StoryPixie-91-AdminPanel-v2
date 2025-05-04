@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Bell, Menu, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,13 +17,15 @@ import { Badge } from '@/components/ui/badge';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import logo from "@/assets/logo.png";
+import { cn } from '@/lib/utils'; // Added missing import
 
 // Import Sidebar content without the full Sidebar component wrapper
-import { SidebarContent } from './SidebarContent';
+// Assuming SidebarContent exists and is correctly implemented
+import { SidebarContent } from './SidebarContent'; 
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
-  const { isSidebarOpen, toggleSidebar } = useLayout();
+  const { isSidebarOpen, toggleSidebar } = useLayout(); // toggleSidebar might not be used here
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -42,7 +43,8 @@ const Header = () => {
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-[250px]">
                 <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-                  <SidebarContent />
+                  {/* Ensure SidebarContent is rendered correctly */}
+                  <SidebarContent /> 
                 </div>
               </SheetContent>
             </Sheet>
@@ -81,7 +83,7 @@ const Header = () => {
           size="icon"
           className="md:hidden"
           onClick={() => {
-            // This would typically open a mobile search overlay
+            // TODO: Implement mobile search functionality
             console.log("Open mobile search");
           }}
         >
@@ -93,6 +95,7 @@ const Header = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="relative">
                 <Bell className="h-4 w-4" />
+                {/* Placeholder notification badge */}
                 <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
                   3
                 </Badge>
@@ -101,27 +104,15 @@ const Header = () => {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {/* Placeholder notifications */}
               <DropdownMenuItem className="cursor-pointer">
                 <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium">System Alert</p>
-                  <p className="text-xs text-muted-foreground">Firebase Functions service is degraded.</p>
+                  <p className="text-sm font-medium">Placeholder Alert</p>
+                  <p className="text-xs text-muted-foreground">Details about the alert.</p>
                   <p className="text-xs text-muted-foreground">10 minutes ago</p>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium">New User Registration</p>
-                  <p className="text-xs text-muted-foreground">5 new users registered today.</p>
-                  <p className="text-xs text-muted-foreground">1 hour ago</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium">Content Flagged</p>
-                  <p className="text-xs text-muted-foreground">A story has been flagged for review.</p>
-                  <p className="text-xs text-muted-foreground">3 hours ago</p>
-                </div>
-              </DropdownMenuItem>
+              {/* Add more placeholder items or implement real notifications later */}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -129,9 +120,9 @@ const Header = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={currentUser?.profileImage} alt={currentUser?.name || 'User'} />
-                  <AvatarFallback className="bg-pixie-300 text-white">
-                    {currentUser?.name?.charAt(0) || <User className="h-4 w-4" />}
+                  <AvatarImage src={currentUser?.profileImage || undefined} alt={currentUser?.name || 'User'} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {currentUser?.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -139,21 +130,21 @@ const Header = () => {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{currentUser?.name || 'User'}</p>
+                  <p className="text-sm font-medium leading-none">{currentUser?.name || 'Admin User'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {currentUser?.email || 'user@example.com'}
+                    {currentUser?.email || 'admin@example.com'}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled> {/* Disable until implemented */}
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled> {/* Disable until implemented */}
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>
+              <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -161,23 +152,12 @@ const Header = () => {
         </div>
       </div>
       
-      {/* Mobile search input - shows when needed */}
-      {isMobile && mobileMenuOpen && (
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full pl-8 bg-background"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-      )}
+      {/* Mobile search input - logic might need refinement */}
+      {/* Consider a dedicated state for mobile search visibility */}
+      {/* {isMobile && mobileSearchOpen && ( ... ) } */}
     </header>
   );
 };
 
 export default Header;
+

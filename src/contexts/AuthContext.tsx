@@ -1,216 +1,129 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { AdminUser, UserRole } from '@/types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { AdminUser } from '@/types'; // Assuming UserRole is part of AdminUser or not needed for basic auth
 import { auth } from '@/lib/firebase';
-import { hasPermission as checkPermission, hasAdminManagementPermission } from '@/hooks/usePermissions';
-import { checkUserMfaStatus } from '@/utils/authHelpers';
 import { getAdminUserData } from '@/hooks/useAdminUser';
-import { loginWithEmailAndPassword, logoutUser } from '@/hooks/useAuthOperations';
-import { logAdminActivity } from '@/utils/adminUsersHelpers';
+import { loginWithEmailAndPassword, logoutUser } from '@/lib/authOperations';
 
 interface AuthContextType {
   currentUser: AdminUser | null;
+  firebaseUser: FirebaseUser | null; // Keep track of the raw Firebase user
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{success: boolean, requiresTwoFactor: boolean, userId: string | null}>;
-  logout: () => void;
-  hasPermission: (requiredRole: UserRole) => boolean;
-  canManageAdmins: () => boolean;
-  completeLogin: () => void;
-  isFirstTimeLogin: boolean;
-  setIsFirstTimeLogin: (value: boolean) => void;
-  pendingUserId: string | null;
-  pendingUserEmail: string | null;
+  isLoading: boolean; // Added loading state
+  login: (email: string, password: string) => Promise<{success: boolean, requiresTwoFactor?: boolean, userId?: string | null, error?: string}>; // Adjusted return type
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORED_USER_KEY = 'pixie_admin_user';
-const FIRST_TIME_LOGIN_KEY = 'pixie_admin_first_login_complete';
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [pendingUser, setPendingUser] = useState<AdminUser | null>(null);
-  const [isFirstTimeLogin, setIsFirstTimeLogin] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start loading
 
   // Listen for Firebase auth state changes
   useEffect(() => {
-    console.log('Setting up Firebase auth state listener');
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in
+    console.log('[AuthContext] Setting up Firebase auth state listener');
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setIsLoading(true); // Set loading true while processing
+      setFirebaseUser(fbUser); // Store the raw Firebase user
+      if (fbUser) {
+        // User is signed in according to Firebase
         try {
-          console.log('Firebase auth state changed: user signed in', user.uid);
-          // Get user from Firestore
-          const firestoreUser = await getAdminUserData(user.uid);
+          console.log('[AuthContext] Firebase user signed in:', fbUser.uid);
+          // Fetch corresponding admin user data from Firestore
+          const adminUserData = await getAdminUserData(fbUser.uid);
           
-          if (firestoreUser) {
-            console.log('Retrieved Firestore user data:', firestoreUser);
-            // Check if user has pending 2FA
-            const requiresMfa = await checkUserMfaStatus(user.uid);
-            console.log('User MFA status:', requiresMfa);
-            
-            // Check if this is the first login
-            const hasCompletedFirstLogin = localStorage.getItem(`${FIRST_TIME_LOGIN_KEY}_${user.uid}`);
-            const isFirstLogin = !hasCompletedFirstLogin && firestoreUser.lastLogin === new Date().toISOString();
-            
-            if (isFirstLogin) {
-              console.log('First time login detected');
-              setIsFirstTimeLogin(true);
-              setPendingUser(firestoreUser);
-              setCurrentUser(null);
-              setIsAuthenticated(false);
-            } else if (requiresMfa) {
-              console.log('User requires 2FA verification');
-              // Store user in pending state, don't complete login yet
-              setPendingUser(firestoreUser);
-              // If no 2FA verification completed yet, don't set the current user
-              setCurrentUser(null);
-              setIsAuthenticated(false);
-              localStorage.removeItem(STORED_USER_KEY);
-            } else {
-              console.log('User does not require 2FA, completing login');
-              // No 2FA required, complete login
-              setCurrentUser(firestoreUser);
-              setIsAuthenticated(true);
-              localStorage.setItem(STORED_USER_KEY, JSON.stringify(firestoreUser));
-              
-              // Mark first login as complete
-              if (isFirstLogin) {
-                localStorage.setItem(`${FIRST_TIME_LOGIN_KEY}_${user.uid}`, 'true');
-              }
-            }
+          if (adminUserData) {
+            console.log('[AuthContext] Found admin user data:', adminUserData.email);
+            // TODO: Re-implement 2FA check here if needed in the future
+            // For now, assume login is complete if admin user exists
+            setCurrentUser(adminUserData);
+            setIsAuthenticated(true);
+            console.log('[AuthContext] Authentication successful.');
           } else {
-            // No valid admin user found
-            console.warn("Authenticated user is not an admin user");
-            await logoutUser(undefined, undefined);
+            // Firebase user exists, but no corresponding admin user found in Firestore
+            console.warn('[AuthContext] Firebase user exists but is not a valid admin user.');
+            await logoutUser(); // Log out the Firebase user
             setCurrentUser(null);
             setIsAuthenticated(false);
-            localStorage.removeItem(STORED_USER_KEY);
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error('[AuthContext] Error fetching admin user data:', error);
+          await logoutUser(); // Log out on error
           setCurrentUser(null);
           setIsAuthenticated(false);
         }
       } else {
         // User is signed out
-        console.log('Firebase auth state changed: user signed out');
+        console.log('[AuthContext] Firebase user signed out.');
         setCurrentUser(null);
         setIsAuthenticated(false);
-        setPendingUser(null);
-        setIsFirstTimeLogin(false);
-        localStorage.removeItem(STORED_USER_KEY);
       }
-      setIsLoading(false);
+      setIsLoading(false); // Finished processing
     });
 
+    // Cleanup listener on unmount
     return () => {
-      console.log('Cleaning up Firebase auth state listener');
+      console.log('[AuthContext] Cleaning up Firebase auth state listener');
       unsubscribe();
     };
   }, []);
 
-  // Login function wrapper
-  const login = async (email: string, password: string) => {
-    const result = await loginWithEmailAndPassword(email, password);
-    if (result.pendingUser) {
-      setPendingUser(result.pendingUser);
+  // Simplified Login function
+  const login = async (email: string, password: string): Promise<{success: boolean, requiresTwoFactor?: boolean, userId?: string | null, error?: string}> => {
+    try {
+      // loginWithEmailAndPassword should ideally just handle the Firebase sign-in
+      // The onAuthStateChanged listener will handle fetching user data and setting state
+      const result = await loginWithEmailAndPassword(email, password);
       
-      // Check if this is the first login
-      const hasCompletedFirstLogin = localStorage.getItem(`${FIRST_TIME_LOGIN_KEY}_${result.userId}`);
-      if (!hasCompletedFirstLogin && result.pendingUser.lastLogin === new Date().toISOString()) {
-        setIsFirstTimeLogin(true);
-      }
-    }
-    return {
-      success: result.success,
-      requiresTwoFactor: result.requiresTwoFactor,
-      userId: result.userId
-    };
-  };
-
-  // Complete login after 2FA verification
-  const completeLogin = () => {
-    if (pendingUser) {
-      console.log('Completing login after 2FA for user:', pendingUser.email);
-      setCurrentUser(pendingUser);
-      setIsAuthenticated(true);
-      localStorage.setItem(STORED_USER_KEY, JSON.stringify(pendingUser));
-      
-      // Log successful 2FA verification
-      logAdminActivity(
-        pendingUser.id,
-        pendingUser.email,
-        'login_2fa_completed',
-        { success: true }
-      );
-      
-      // Mark first login as complete
-      if (isFirstTimeLogin) {
-        localStorage.setItem(`${FIRST_TIME_LOGIN_KEY}_${pendingUser.id}`, 'true');
-        setIsFirstTimeLogin(false);
-      }
-      
-      setPendingUser(null);
-    } else {
-      console.error('No pending user to complete login for');
+      // The listener will automatically pick up the state change and update context
+      // We might return success/failure/2FA requirement from the operation itself
+      return { success: result.success, requiresTwoFactor: result.requiresTwoFactor, userId: result.userId };
+    } catch (error: any) {
+      console.error('[AuthContext] Login failed:', error);
+      return { success: false, error: error.message };
     }
   };
 
-  const logout = async () => {
-    await logoutUser(currentUser?.id, currentUser?.email);
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setPendingUser(null);
-    setIsFirstTimeLogin(false);
-    localStorage.removeItem(STORED_USER_KEY);
+  // Simplified Logout function
+  const logout = async (): Promise<void> => {
+    try {
+      await logoutUser(currentUser?.id, currentUser?.email); // Pass user info for logging if available
+      // Listener will handle setting state to unauthenticated
+      console.log('[AuthContext] Logout successful.');
+    } catch (error) {
+      console.error('[AuthContext] Logout failed:', error);
+      // Even if Firebase logout fails, clear local state
+      setCurrentUser(null);
+      setFirebaseUser(null);
+      setIsAuthenticated(false);
+      setIsLoading(false); // Ensure loading is false
+    }
   };
 
-  // Permission check wrapper
-  const hasPermission = (requiredRole: UserRole): boolean => {
-    return checkPermission(currentUser?.role, requiredRole);
-  };
-
-  // Check if user can manage admins
-  const canManageAdmins = (): boolean => {
-    return hasAdminManagementPermission(currentUser?.role);
-  };
-
-  if (isLoading) {
-    // Loading spinner
-    return <div className="flex items-center justify-center h-screen">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-    </div>;
-  }
-
+  // Provide the context value
   return (
     <AuthContext.Provider value={{ 
       currentUser, 
+      firebaseUser,
       isAuthenticated, 
+      isLoading, 
       login, 
-      logout, 
-      hasPermission,
-      canManageAdmins,
-      completeLogin,
-      isFirstTimeLogin,
-      setIsFirstTimeLogin,
-      pendingUserId: pendingUser?.id || null,
-      pendingUserEmail: pendingUser?.email || null
+      logout 
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
+// Custom hook to use the AuthContext
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
   return context;
 };
+

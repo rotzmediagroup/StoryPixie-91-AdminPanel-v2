@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import logo from "@/assets/logo.png";
+import { AlertCircle, RefreshCw } from 'lucide-react'; // Added missing imports
 
 interface LoginFormProps {
   email: string;
@@ -104,3 +104,4 @@ const LoginForm = ({
 };
 
 export default LoginForm;
+

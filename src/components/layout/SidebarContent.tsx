@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import logo from '@/assets/logo.png';
 import { 
   Users, 
   BarChart3, 
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { UserRole } from '@/types';
+import { UserRole } from '@/types'; // Assuming UserRole is defined in @/types
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -34,14 +35,14 @@ interface NavItemProps {
 }
 
 const NavItem = ({ icon: Icon, label, href, active, minimized, roles = [] }: NavItemProps) => {
-  const { hasPermission } = useAuth();
+  // Simplified: Removed role-based access control for now during rebuild
+  // const { hasPermission } = useAuth();
   const { closeSidebar } = useLayout();
   const isMobile = useIsMobile();
   
-  // Check if user has any of the required roles
-  const hasRequiredRole = roles.length === 0 || roles.some(role => hasPermission(role));
-  
-  if (!hasRequiredRole) return null;
+  // Simplified: Always show item during rebuild
+  // const hasRequiredRole = roles.length === 0 || roles.some(role => hasPermission(role));
+  // if (!hasRequiredRole) return null;
 
   // On mobile, close sidebar after navigation
   const handleClick = () => {
@@ -70,7 +71,8 @@ const NavItem = ({ icon: Icon, label, href, active, minimized, roles = [] }: Nav
 export const SidebarContent: React.FC = () => {
   const location = useLocation();
   const { isSidebarOpen, toggleSidebar } = useLayout();
-  const { currentUser, logout, canManageAdmins } = useAuth();
+  // Simplified: Removed canManageAdmins for now
+  const { currentUser, logout } = useAuth(); 
   const isMobile = useIsMobile();
   
   const isActive = (path: string) => {
@@ -85,7 +87,7 @@ export const SidebarContent: React.FC = () => {
         <div className="flex items-center flex-1">
           <div className="h-8 w-auto">
             <img 
-              src="/lovable-uploads/da8a1305-1c08-45c1-b924-b18e1134d27f.png" 
+              src={logo} // Use imported logo
               alt="Story Pixie Logo" 
               className="h-full object-contain"
             />
@@ -112,7 +114,7 @@ export const SidebarContent: React.FC = () => {
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Navigation Links */}
+      {/* Navigation Links - Simplified for rebuild */}
       <ScrollArea className="flex-1 overflow-auto">
         <div className="px-2 py-2">
           <NavItem 
@@ -122,65 +124,17 @@ export const SidebarContent: React.FC = () => {
             active={isActive('/')} 
             minimized={!isSidebarOpen && !isMobile} 
           />
+          {/* Add other core NavItems here as they are rebuilt */}
+          {/* Example: 
           <NavItem 
             icon={Users} 
-            label="User Management" 
+            label="Users" 
             href="/users" 
             active={isActive('/users')} 
             minimized={!isSidebarOpen && !isMobile} 
-            roles={['super_admin', 'admin', 'support_staff']} 
-          />
-          {canManageAdmins() && (
-            <NavItem 
-              icon={Shield} 
-              label="Admin Management" 
-              href="/admin-users" 
-              active={isActive('/admin-users')} 
-              minimized={!isSidebarOpen && !isMobile} 
-              roles={['super_admin']} 
-            />
-          )}
-          <NavItem 
-            icon={Wand2} 
-            label="AI Services" 
-            href="/ai-services" 
-            active={isActive('/ai-services')} 
-            minimized={!isSidebarOpen && !isMobile}
-            roles={['super_admin', 'admin', 'content_moderator']} 
-          />
-          <NavItem 
-            icon={BookOpen} 
-            label="Content" 
-            href="/content" 
-            active={isActive('/content')} 
-            minimized={!isSidebarOpen && !isMobile} 
-            roles={['super_admin', 'admin', 'content_moderator']} 
-          />
-          <NavItem 
-            icon={Activity} 
-            label="System Health" 
-            href="/system" 
-            active={isActive('/system')} 
-            minimized={!isSidebarOpen && !isMobile} 
-            roles={['super_admin', 'admin']} 
-          />
-          <NavItem 
-            icon={BarChart3} 
-            label="Analytics" 
-            href="/analytics" 
-            active={isActive('/analytics')} 
-            minimized={!isSidebarOpen && !isMobile} 
-            roles={['super_admin', 'admin', 'analytics_viewer']} 
-          />
-          <NavItem 
-            icon={Database} 
-            label="Configuration" 
-            href="/config" 
-            active={isActive('/config')} 
-            minimized={!isSidebarOpen && !isMobile} 
-            roles={['super_admin']} 
-          />
-          <NavItem 
+          /> 
+          */}
+           <NavItem 
             icon={Settings} 
             label="Settings" 
             href="/settings" 
@@ -200,14 +154,15 @@ export const SidebarContent: React.FC = () => {
             <>
               <div className="flex items-center">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={currentUser.profileImage} alt={currentUser.name} />
-                  <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">
-                    {currentUser.name.charAt(0)}
+                  <AvatarImage src={currentUser.profileImage || undefined} alt={currentUser.name || 'Admin'} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {currentUser.name?.charAt(0).toUpperCase() || 'A'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="ml-2">
-                  <p className="text-xs font-medium leading-none">{currentUser.name}</p>
-                  <p className="text-xs text-sidebar-foreground/60">{currentUser.role.replace('_', ' ')}</p>
+                  <p className="text-xs font-medium leading-none">{currentUser.name || 'Admin User'}</p>
+                  {/* Simplified: Removed role display for now */}
+                  {/* <p className="text-xs text-sidebar-foreground/60">{currentUser.role.replace('_', ' ')}</p> */}
                 </div>
               </div>
               <Button 
@@ -219,7 +174,7 @@ export const SidebarContent: React.FC = () => {
                 <LogOut className="h-4 w-4" />
               </Button>
             </>
-          ) : (
+          ) : !isMobile ? ( // Show logout icon even when minimized on desktop
             <Button 
               variant="ghost" 
               size="icon" 
@@ -228,9 +183,10 @@ export const SidebarContent: React.FC = () => {
             >
               <LogOut className="h-4 w-4" />
             </Button>
-          )}
+          ) : null /* Don't show anything if not logged in on mobile */}
         </div>
       </div>
     </>
   );
 };
+
