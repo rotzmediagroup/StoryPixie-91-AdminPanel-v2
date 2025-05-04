@@ -8,7 +8,12 @@ import { LayoutProvider } from "@/contexts/LayoutContext";
 import AdminLayout from "@/components/layout/AdminLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import UserManagement from "@/pages/UserManagement"; // Import the new page
+import UserManagement from "@/pages/UserManagement";
+import StoryManagement from "@/pages/StoryManagement"; // Added import
+import ContentModeration from "@/pages/ContentModeration"; // Added import
+import AIModelManagement from "@/pages/AIModelManagement"; // Added import
+import Analytics from "@/pages/Analytics"; // Added import
+import Settings from "@/pages/Settings"; // Added import
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -78,8 +83,12 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/users" element={<UserManagement />} /> {/* Add the user management route */}
-        {/* Add other core routes here later as needed */}
+        <Route path="/analytics" element={<Analytics />} /> {/* Added route */}
+        <Route path="/users" element={<UserManagement />} />
+        <Route path="/stories" element={<StoryManagement />} /> {/* Added route */}
+        <Route path="/moderation" element={<ContentModeration />} /> {/* Added route */}
+        <Route path="/ai-models" element={<AIModelManagement />} /> {/* Added route */}
+        <Route path="/settings" element={<Settings />} /> {/* Added route */}
       </Route>
       
       {/* Catch-all 404 route */}
