@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Users } from 'lucide-react';
-import { getUserCount, getUserSample } from '@/lib/firestoreUtils';
+import { Loader2 } from 'lucide-react';
+import { getAllUsers } from '@/lib/firestoreUtils'; // Use getAllUsers
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { DataTable } from '@/components/ui/data-table'; // Import the new DataTable component
+import { userColumns } from '@/components/users/columns'; // Import the column definitions
+import { User } from '@/types'; // Assuming User type is defined
 
 const UserManagement = () => {
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [userSample, setUserSample] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,10 +17,8 @@ const UserManagement = () => {
       setLoading(true);
       setError(null);
       try {
-        const count = await getUserCount();
-        const sample = await getUserSample(10); // Fetch 10 sample users
-        setUserCount(count);
-        setUserSample(sample);
+        const allUsers = await getAllUsers();
+        setUsers(allUsers);
       } catch (err: any) {
         console.error("Error fetching user data:", err);
         setError(err.message || 'Failed to load user data');
@@ -36,7 +34,7 @@ const UserManagement = () => {
     <div className="space-y-6">
       <DashboardHeader 
         title="User Management" 
-        description="View and manage StoryPixie users." 
+        description="View, search, filter, and manage StoryPixie users." 
       />
 
       {loading && (
@@ -60,61 +58,15 @@ const UserManagement = () => {
       )}
 
       {!loading && !error && (
-        <div className="grid grid-cols-1 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {userCount !== null && userCount >= 0 ? userCount.toLocaleString() : 'N/A'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total registered users in the platform.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>User Sample (First 10)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User ID</TableHead>
-                      <TableHead>Email</TableHead>
-                      {/* Add more relevant columns based on available data */}
-                      {/* <TableHead>Name</TableHead> */}
-                      {/* <TableHead>Registration Date</TableHead> */}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {userSample.length > 0 ? (
-                      userSample.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.id}</TableCell>
-                          <TableCell>{user.email || 'N/A'}</TableCell>
-                          {/* <TableCell>{user.name || 'N/A'}</TableCell> */}
-                          {/* <TableCell>{user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'N/A'}</TableCell> */}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={2} className="h-24 text-center">
-                          No user sample data available.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>All Users ({users.length})</CardTitle>
+            {/* Toolbar and other controls will be inside DataTable */}
+          </CardHeader>
+          <CardContent>
+            <DataTable columns={userColumns} data={users} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

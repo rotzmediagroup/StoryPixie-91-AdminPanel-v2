@@ -1,5 +1,6 @@
-import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore'; // Added doc, updateDoc
 import { db } from './firebase';
+import { User, UserStatus } from '@/types'; // Assuming User type is defined
 
 // Function to get the total count of users in the 'users' collection
 export const getUserCount = async (): Promise<number> => {
@@ -13,15 +14,50 @@ export const getUserCount = async (): Promise<number> => {
   }
 };
 
+// Function to get ALL users
+// WARNING: Fetching all users can be inefficient and costly for large datasets.
+// Consider implementing server-side pagination and filtering in the future.
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const usersCollection = collection(db, 'users');
+    const q = query(usersCollection, orderBy('createdAt', 'desc')); // Order by creation date, newest first
+    const querySnapshot = await getDocs(q);
+    const users: User[] = [];
+    querySnapshot.forEach((doc) => {
+      // Ensure the data matches the User type, adding the id
+      users.push({ id: doc.id, ...doc.data() } as User);
+    });
+    return users;
+  } catch (error) {
+    console.error(`Error getting all users:`, error);
+    return [];
+  }
+};
+
+// Function to update a user's status
+export const updateUserStatus = async (userId: string, status: UserStatus): Promise<boolean> => {
+  try {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, { status: status });
+    console.log(`User ${userId} status updated to ${status}`);
+    return true;
+  } catch (error) {
+    console.error(`Error updating status for user ${userId}:`, error);
+    return false;
+  }
+};
+
+
 // Function to get a small sample of users (e.g., first 5)
-export const getUserSample = async (count: number = 5): Promise<any[]> => {
+// Kept for potential other uses, but getAllUsers is preferred for the table
+export const getUserSample = async (count: number = 5): Promise<User[]> => {
   try {
     const usersCollection = collection(db, 'users');
     const q = query(usersCollection, limit(count));
     const querySnapshot = await getDocs(q);
-    const users: any[] = [];
+    const users: User[] = [];
     querySnapshot.forEach((doc) => {
-      users.push({ id: doc.id, ...doc.data() });
+      users.push({ id: doc.id, ...doc.data() } as User);
     });
     return users;
   } catch (error) {
@@ -36,18 +72,29 @@ export const getUserSample = async (count: number = 5): Promise<any[]> => {
 export const getTotalStoryCount = async (): Promise<number> => {
   let totalStories = 0;
   try {
-    const usersSnapshot = await getDocs(collection(db, 'users'));
-    for (const userDoc of usersSnapshot.docs) {
-      const kidsSnapshot = await getDocs(collection(db, 'users', userDoc.id, 'kids'));
-      for (const kidDoc of kidsSnapshot.docs) {
-        const storiesSnapshot = await getCountFromServer(collection(db, 'users', userDoc.id, 'kids', kidDoc.id, 'stories'));
-        totalStories += storiesSnapshot.data().count;
+    // Attempt collection group query first (requires index)
+    console.log("Attempting collection group query for total story count...");
+    const storiesGroupRef = collectionGroup(db, 'stories');
+    const snapshot = await getCountFromServer(storiesGroupRef);
+    console.log("Collection group query successful for total story count.");
+    return snapshot.data().count;
+  } catch (groupError) {
+    console.warn("Collection group query for total story count failed, falling back to iteration:", groupError);
+    // Fallback to iteration if collection group query fails
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      for (const userDoc of usersSnapshot.docs) {
+        const kidsSnapshot = await getDocs(collection(db, 'users', userDoc.id, 'kids'));
+        for (const kidDoc of kidsSnapshot.docs) {
+          const storiesSnapshot = await getCountFromServer(collection(db, 'users', userDoc.id, 'kids', kidDoc.id, 'stories'));
+          totalStories += storiesSnapshot.data().count;
+        }
       }
+      return totalStories;
+    } catch (iterationError) {
+      console.error("Error getting total story count via iteration:", iterationError);
+      return -1;
     }
-    return totalStories;
-  } catch (error) {
-    console.error("Error getting total story count:", error);
-    return -1;
   }
 };
 
