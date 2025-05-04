@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUserCount, getTotalStoryCount, getStoriesGeneratedTodayCount } from './firestoreUtils';
+import { getUserCount, getTotalStoryCount, getStoriesGeneratedTodayCount } from '@/lib/firestoreUtils';
 
 export interface DashboardStatsData {
   userCount: number | null;

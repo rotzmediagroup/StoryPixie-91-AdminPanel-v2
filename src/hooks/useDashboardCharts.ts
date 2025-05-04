@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getDailyUserSignups, getDailyStoryGenerations } from './firestoreUtils';
+import { getDailyUserSignups, getDailyStoryGenerations } from '@/lib/firestoreUtils';
 
 export interface ChartDataPoint {
   date: string;
