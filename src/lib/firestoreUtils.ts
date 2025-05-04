@@ -1,15 +1,17 @@
-import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore'; // Added doc, updateDoc
-import { db } from './firebase';
-import { User, UserStatus } from '@/types'; // Assuming User type is defined
+import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from \'firebase/firestore\'; // Added addDoc, deleteDoc, serverTimestamp
+import { db } from \'./firebase\';
+import { User, UserStatus, Story, AIModel } from \'@/types\'; // Added AIModel type
 
-// Function to get the total count of users in the 'users' collection
+// --- User Functions ---
+
+// Function to get the total count of users in the \'users\' collection
 export const getUserCount = async (): Promise<number> => {
   try {
-    const usersCollection = collection(db, 'users');
+    const usersCollection = collection(db, \'users\');
     const snapshot = await getCountFromServer(usersCollection);
     return snapshot.data().count;
   } catch (error) {
-    console.error("Error getting user count:", error);
+    console.error(\"Error getting user count:\", error);
     return -1; 
   }
 };
@@ -19,8 +21,8 @@ export const getUserCount = async (): Promise<number> => {
 // Consider implementing server-side pagination and filtering in the future.
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    const usersCollection = collection(db, 'users');
-    const q = query(usersCollection, orderBy('createdAt', 'desc')); // Order by creation date, newest first
+    const usersCollection = collection(db, \'users\');
+    const q = query(usersCollection, orderBy(\'createdAt\', \'desc\')); // Order by creation date, newest first
     const querySnapshot = await getDocs(q);
     const users: User[] = [];
     querySnapshot.forEach((doc) => {
@@ -34,10 +36,10 @@ export const getAllUsers = async (): Promise<User[]> => {
   }
 };
 
-// Function to update a user's status
+// Function to update a user\'s status
 export const updateUserStatus = async (userId: string, status: UserStatus): Promise<boolean> => {
   try {
-    const userDocRef = doc(db, 'users', userId);
+    const userDocRef = doc(db, \'users\', userId);
     await updateDoc(userDocRef, { status: status });
     console.log(`User ${userId} status updated to ${status}`);
     return true;
@@ -47,12 +49,11 @@ export const updateUserStatus = async (userId: string, status: UserStatus): Prom
   }
 };
 
-
 // Function to get a small sample of users (e.g., first 5)
 // Kept for potential other uses, but getAllUsers is preferred for the table
 export const getUserSample = async (count: number = 5): Promise<User[]> => {
   try {
-    const usersCollection = collection(db, 'users');
+    const usersCollection = collection(db, \'users\');
     const q = query(usersCollection, limit(count));
     const querySnapshot = await getDocs(q);
     const users: User[] = [];
@@ -66,35 +67,100 @@ export const getUserSample = async (count: number = 5): Promise<User[]> => {
   }
 };
 
-// Function to get the total count of stories across all users and kids
-// WARNING: This function iterates through all users and kids, which can be inefficient and costly on large datasets.
-// Consider implementing a distributed counter or using aggregation for better performance.
-export const getTotalStoryCount = async (): Promise<number> => {
-  let totalStories = 0;
+// --- Story Functions ---
+
+// Function to get ALL stories using a collection group query
+// Requires a Firestore index on the \'stories\' collection group, ordered by \'createdAt\'
+export const getAllStories = async (): Promise<Story[]> => {
   try {
-    // Attempt collection group query first (requires index)
-    console.log("Attempting collection group query for total story count...");
-    const storiesGroupRef = collectionGroup(db, 'stories');
-    const snapshot = await getCountFromServer(storiesGroupRef);
-    console.log("Collection group query successful for total story count.");
-    return snapshot.data().count;
-  } catch (groupError) {
-    console.warn("Collection group query for total story count failed, falling back to iteration:", groupError);
-    // Fallback to iteration if collection group query fails
-    try {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      for (const userDoc of usersSnapshot.docs) {
-        const kidsSnapshot = await getDocs(collection(db, 'users', userDoc.id, 'kids'));
-        for (const kidDoc of kidsSnapshot.docs) {
-          const storiesSnapshot = await getCountFromServer(collection(db, 'users', userDoc.id, 'kids', kidDoc.id, 'stories'));
-          totalStories += storiesSnapshot.data().count;
-        }
-      }
-      return totalStories;
-    } catch (iterationError) {
-      console.error("Error getting total story count via iteration:", iterationError);
-      return -1;
+    const storiesGroupRef = collectionGroup(db, \'stories\');
+    const q = query(storiesGroupRef, orderBy(\'createdAt\', \'desc\')); // Order by creation date, newest first
+    const querySnapshot = await getDocs(q);
+    const stories: Story[] = [];
+    querySnapshot.forEach((doc) => {
+      // Extract parent path segments to get userId and kidId
+      const pathSegments = doc.ref.path.split(\'/\');
+      // Expected path: users/{userId}/kids/{kidId}/stories/{storyId}
+      const userId = pathSegments.length >= 2 ? pathSegments[1] : \'unknown\';
+      const kidId = pathSegments.length >= 4 ? pathSegments[3] : \'unknown\';
+      
+      stories.push({
+        id: doc.id,
+        userId: userId,
+        kidId: kidId,
+        ...doc.data(),
+      } as Story);
+    });
+    return stories;
+  } catch (error) {
+    console.error(`Error getting all stories (collection group query):`, error);
+    // Potentially suggest creating the index in the error message or logs
+    if (error instanceof Error && error.message.includes(\'indexes\')) {
+      console.error(\"Firestore index required: Ensure you have a collection group index for \'stories\' ordered by \'createdAt\' descending.\");
     }
+    return [];
+  }
+};
+
+// Function to get stories with status \'flagged\'
+// Requires a Firestore index on the \'stories\' collection group, filtering by \'status\' and ordered by \'createdAt\'
+export const getFlaggedStories = async (): Promise<Story[]> => {
+  try {
+    const storiesGroupRef = collectionGroup(db, \'stories\');
+    // Query for stories where status is 'flagged', order by creation date
+    const q = query(storiesGroupRef, where(\'status\', \'==\', \'flagged\'), orderBy(\'createdAt\', \'desc\'));
+    const querySnapshot = await getDocs(q);
+    const stories: Story[] = [];
+    querySnapshot.forEach((doc) => {
+      const pathSegments = doc.ref.path.split(\'/\');
+      const userId = pathSegments.length >= 2 ? pathSegments[1] : \'unknown\';
+      const kidId = pathSegments.length >= 4 ? pathSegments[3] : \'unknown\';
+      
+      stories.push({
+        id: doc.id,
+        userId: userId,
+        kidId: kidId,
+        ...doc.data(),
+      } as Story);
+    });
+    return stories;
+  } catch (error) {
+    console.error(`Error getting flagged stories (collection group query):`, error);
+    if (error instanceof Error && error.message.includes(\'indexes\')) {
+      console.error(\"Firestore index required: Ensure you have a collection group index for \'stories\' filtering by \'status\' and ordered by \'createdAt\' descending.\");
+    }
+    return [];
+  }
+};
+
+// Function to update a story\'s status
+// Note: Requires knowing the full path to the story document (userId, kidId, storyId)
+export const updateStoryStatus = async (userId: string, kidId: string, storyId: string, status: Story[\'status\']): Promise<boolean> => {
+  try {
+    const storyDocRef = doc(db, \'users\', userId, \'kids\', kidId, \'stories\', storyId);
+    await updateDoc(storyDocRef, { status: status });
+    console.log(`Story ${storyId} (User: ${userId}, Kid: ${kidId}) status updated to ${status}`);
+    return true;
+  } catch (error) {
+    console.error(`Error updating status for story ${storyId}:`, error);
+    return false;
+  }
+};
+
+
+// Function to get the total count of stories across all users and kids
+// Uses collection group query - requires Firestore index
+export const getTotalStoryCount = async (): Promise<number> => {
+  try {
+    const storiesGroupRef = collectionGroup(db, \'stories\');
+    const snapshot = await getCountFromServer(storiesGroupRef);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error(\"Error getting total story count (collection group query):\", error);
+     if (error instanceof Error && error.message.includes(\'indexes\')) {
+      console.error(\"Firestore index required: Ensure you have a collection group index for \'stories\'.\");
+    }
+    return -1; // Indicate failure
   }
 };
 
@@ -104,15 +170,84 @@ export const getStoriesGeneratedTodayCount = async (): Promise<number> => {
   const now = Timestamp.now();
   const twentyFourHoursAgo = Timestamp.fromMillis(now.toMillis() - 24 * 60 * 60 * 1000);
   try {
-    const storiesGroupRef = collectionGroup(db, 'stories');
-    const qGroup = query(storiesGroupRef, where('createdAt', '>=', twentyFourHoursAgo));
+    const storiesGroupRef = collectionGroup(db, \'stories\');
+    const qGroup = query(storiesGroupRef, where(\'createdAt\', \'>=\', twentyFourHoursAgo));
     const snapshot = await getCountFromServer(qGroup);
     return snapshot.data().count;
   } catch (error) {
-    console.error("Error getting stories generated today count (collection group query):", error);
+    console.error(\"Error getting stories generated today count (collection group query):\", error);
+     if (error instanceof Error && error.message.includes(\'indexes\')) {
+      console.error(\"Firestore index required: Ensure you have a collection group index for \'stories\' with \'createdAt\' field.\");
+    }
     return -1; // Indicate failure
   }
 };
+
+// --- AI Model Functions ---
+
+// Function to get all configured AI Models
+export const getAllAIModels = async (): Promise<AIModel[]> => {
+  try {
+    const modelsCollection = collection(db, \'ai_models\'); // Assuming collection name is \'ai_models\'
+    const q = query(modelsCollection, orderBy(\'name\', \'asc\')); // Order by name
+    const querySnapshot = await getDocs(q);
+    const models: AIModel[] = [];
+    querySnapshot.forEach((doc) => {
+      models.push({ id: doc.id, ...doc.data() } as AIModel);
+    });
+    return models;
+  } catch (error) {
+    console.error(`Error getting all AI models:`, error);
+    return [];
+  }
+};
+
+// Function to add a new AI Model configuration
+export const addAIModel = async (modelData: Omit<AIModel, \'id\'>): Promise<string | null> => {
+  try {
+    const modelsCollection = collection(db, \'ai_models\');
+    const docRef = await addDoc(modelsCollection, {
+      ...modelData,
+      // Add timestamps if needed, e.g., createdAt: serverTimestamp()
+    });
+    console.log(`AI Model added with ID: ${docRef.id}`);
+    return docRef.id;
+  } catch (error) {
+    console.error(`Error adding AI model:`, error);
+    return null;
+  }
+};
+
+// Function to update an existing AI Model configuration
+export const updateAIModel = async (modelId: string, updates: Partial<AIModel>): Promise<boolean> => {
+  try {
+    const modelDocRef = doc(db, \'ai_models\', modelId);
+    await updateDoc(modelDocRef, {
+      ...updates,
+      // Add timestamps if needed, e.g., updatedAt: serverTimestamp()
+    });
+    console.log(`AI Model ${modelId} updated successfully.`);
+    return true;
+  } catch (error) {
+    console.error(`Error updating AI model ${modelId}:`, error);
+    return false;
+  }
+};
+
+// Function to delete an AI Model configuration
+export const deleteAIModel = async (modelId: string): Promise<boolean> => {
+  try {
+    const modelDocRef = doc(db, \'ai_models\', modelId);
+    await deleteDoc(modelDocRef);
+    console.log(`AI Model ${modelId} deleted successfully.`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting AI model ${modelId}:`, error);
+    return false;
+  }
+};
+
+// --- Dashboard/Analytics Functions ---
 
 // Function to get daily user signups for the last N days
 export const getDailyUserSignups = async (days: number = 7): Promise<{ date: string; count: number }[]> => {
@@ -123,15 +258,15 @@ export const getDailyUserSignups = async (days: number = 7): Promise<{ date: str
   startDate.setHours(0, 0, 0, 0);
 
   try {
-    const usersCollection = collection(db, 'users');
-    // Assuming users have a 'createdAt' field (Timestamp)
-    const q = query(usersCollection, where('createdAt', '>=', Timestamp.fromDate(startDate)), orderBy('createdAt', 'asc'));
+    const usersCollection = collection(db, \'users\');
+    // Assuming users have a \'createdAt\' field (Timestamp)
+    const q = query(usersCollection, where(\'createdAt\', \'>=\', Timestamp.fromDate(startDate)), orderBy(\'createdAt\', \'asc\'));
     const querySnapshot = await getDocs(q);
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.createdAt && data.createdAt.toDate) {
-        const dateStr = data.createdAt.toDate().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateStr = data.createdAt.toDate().toISOString().split(\'T\')[0]; // YYYY-MM-DD
         signupData[dateStr] = (signupData[dateStr] || 0) + 1;
       }
     });
@@ -141,7 +276,7 @@ export const getDailyUserSignups = async (days: number = 7): Promise<{ date: str
     for (let d = 0; d < days; d++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + d);
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = currentDate.toISOString().split(\'T\')[0];
       result.push({ date: dateStr, count: signupData[dateStr] || 0 });
     }
     return result;
@@ -162,14 +297,14 @@ export const getDailyStoryGenerations = async (days: number = 7): Promise<{ date
   startDate.setHours(0, 0, 0, 0);
 
   try {
-    const storiesGroupRef = collectionGroup(db, 'stories');
-    const q = query(storiesGroupRef, where('createdAt', '>=', Timestamp.fromDate(startDate)), orderBy('createdAt', 'asc'));
+    const storiesGroupRef = collectionGroup(db, \'stories\');
+    const q = query(storiesGroupRef, where(\'createdAt\', \'>=\', Timestamp.fromDate(startDate)), orderBy(\'createdAt\', \'asc\'));
     const querySnapshot = await getDocs(q);
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.createdAt && data.createdAt.toDate) {
-        const dateStr = data.createdAt.toDate().toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateStr = data.createdAt.toDate().toISOString().split(\'T\')[0]; // YYYY-MM-DD
         generationData[dateStr] = (generationData[dateStr] || 0) + 1;
       }
     });
@@ -179,13 +314,16 @@ export const getDailyStoryGenerations = async (days: number = 7): Promise<{ date
     for (let d = 0; d < days; d++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + d);
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = currentDate.toISOString().split(\'T\')[0];
       result.push({ date: dateStr, count: generationData[dateStr] || 0 });
     }
     return result;
 
   } catch (error) {
     console.error(`Error getting daily story generations for last ${days} days:`, error);
+     if (error instanceof Error && error.message.includes(\'indexes\')) {
+      console.error(\"Firestore index required: Ensure you have a collection group index for \'stories\' with \'createdAt\' field.\");
+    }
     return [];
   }
 };

@@ -14,6 +14,7 @@ export interface User {
     status: string;
     renewalDate?: string;
   };
+  createdAt?: any; // Added createdAt based on usage in firestoreUtils
 }
 
 export interface Session {
@@ -156,3 +157,22 @@ export interface AdminInvitation {
   createdBy: string;
   token: string;
 }
+
+// Story interface
+export interface Story {
+  id: string; // Firestore document ID
+  userId: string; // ID of the user who owns the story
+  kidId: string; // ID of the kid profile the story belongs to
+  title: string;
+  content: string; // The actual story text
+  createdAt: any; // Firestore Timestamp
+  status: 'pending' | 'generating' | 'completed' | 'failed' | 'flagged'; // Status of the story
+  prompt?: string; // The prompt used to generate the story
+  modelUsed?: string; // Which AI model generated the story
+  audioUrl?: string; // URL to the generated audio file
+  imageUrl?: string; // URL to the generated cover image
+  isSequel?: boolean; // Flag indicating if it's a sequel
+  parentStoryId?: string; // ID of the parent story if it's a sequel
+  // Add other relevant fields as needed
+}
+
