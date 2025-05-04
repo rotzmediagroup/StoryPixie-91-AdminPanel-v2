@@ -8,8 +8,8 @@ import { LayoutProvider } from "@/contexts/LayoutContext";
 import AdminLayout from "@/components/layout/AdminLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import UserManagement from "@/pages/UserManagement"; // Import the new page
 import NotFound from "@/pages/NotFound";
-// Removed other page imports for simplification
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,8 +78,8 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/users" element={<UserManagement />} /> {/* Add the user management route */}
         {/* Add other core routes here later as needed */}
-        {/* e.g., <Route path="/users" element={<Users />} /> */}
       </Route>
       
       {/* Catch-all 404 route */}

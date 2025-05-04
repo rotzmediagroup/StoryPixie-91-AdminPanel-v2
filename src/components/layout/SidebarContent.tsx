@@ -124,8 +124,6 @@ export const SidebarContent: React.FC = () => {
             active={isActive('/')} 
             minimized={!isSidebarOpen && !isMobile} 
           />
-          {/* Add other core NavItems here as they are rebuilt */}
-          {/* Example: 
           <NavItem 
             icon={Users} 
             label="Users" 
@@ -133,7 +131,6 @@ export const SidebarContent: React.FC = () => {
             active={isActive('/users')} 
             minimized={!isSidebarOpen && !isMobile} 
           /> 
-          */}
            <NavItem 
             icon={Settings} 
             label="Settings" 
