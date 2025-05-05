@@ -1,0 +1,151 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if the user is an authenticated admin
+    function isAdmin() {
+      // Check if the user is authenticated
+      let isAuthenticated = request.auth != null;
+      // Check if the user's UID exists in the adminUsers collection
+      // Assumes adminUsers collection stores documents with UIDs as document IDs
+      // And each document has a 'role' field (e.g., 'admin', 'super_admin')
+      let isAdminUser = isAuthenticated && exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid));
+      // Optional: Add role check if needed
+      // let hasAdminRole = isAdminUser && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+      return isAdminUser; // Use hasAdminRole if role check is added
+    }
+
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users collection: Allow users to read/update their own profile, admins can read any
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+      // Allow create only if UID matches document ID (user creating their own doc)
+      allow create: if isOwner(userId);
+      allow delete: if isAdmin(); // Only admins can delete user accounts
+
+      // Subcollections within users (profiles, character_sets, stories, sequels)
+      // Profiles: Users can manage their own profiles
+      match /profiles/{profileId} {
+        allow read, write: if isOwner(userId);
+        // Admins can read profiles (needed for user management details)
+        allow read: if isAdmin();
+      }
+
+      // Character Sets: Users can manage their own character sets
+      match /character_sets/{charSetId} {
+        allow read, write: if isOwner(userId);
+         // Admins can read character sets (potentially needed for context)
+        allow read: if isAdmin();
+      }
+
+      // Stories: Users can manage their own stories
+      match /stories/{storyId} {
+        allow read, write: if isOwner(userId);
+        // Admins can read stories (needed for story management/moderation)
+        // This rule only applies to direct access, not collection group query
+        allow read: if isAdmin(); 
+      }
+
+      // Sequels: Users can manage their own sequels
+      match /sequels/{sequelId} {
+        allow read, write: if isOwner(userId);
+        // Admins can read sequels (potentially needed for context)
+        allow read: if isAdmin(); 
+      }
+      
+      // Pixie Dust: Users can read their own, admins can read/write any
+      match /pixie_dust/{dustDocId} { // Assuming a single doc like 'balance'
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isAdmin(); // Only admins adjust balance directly?
+        // Or allow users to write only specific fields if they earn dust?
+      }
+      
+      // Pixie Dust Transactions: Users read own, admins read any
+      match /pixie_dust_transactions/{transactionId} {
+          allow read: if isOwner(userId) || isAdmin();
+          allow create: if isOwner(userId); // User triggers transaction
+          // No update/delete generally needed for transaction logs
+      }
+    }
+
+    // Collection Group Queries - IMPORTANT for Admin Panel
+    // Stories Collection Group: Admins need read access across all users
+    match /{path=**}/stories/{storyId} {
+      // Ensure admins can read stories via collection group queries,
+      // especially those filtered by status == 'flagged' and ordered by createdAt
+      allow read: if isAdmin();
+      // Explicitly deny direct writes to the collection group path
+      allow write: if false; 
+    }
+    
+    // Profiles Collection Group: Admins need read access across all users
+     match /{path=**}/profiles/{profileId} {
+      allow read: if isAdmin();
+      allow write: if false; // Deny direct write to collection group
+    }
+    
+    // Character Sets Collection Group: Admins need read access across all users
+    match /{path=**}/character_sets/{charSetId} {
+      allow read: if isAdmin();
+      allow write: if false; // Deny direct write to collection group
+    }
+
+    // Admin Users collection: Only readable by admins themselves?
+    match /adminUsers/{adminId} {
+      allow read: if isAdmin() && request.auth.uid == adminId; // Admin reads own info
+      // Or allow all admins to read other admin info?
+      // allow read: if isAdmin(); 
+      allow write: if isAdmin() && request.auth.uid == adminId; // Admin updates own info
+      // Allow super admins to manage other admins?
+      // allow write: if isAdmin() && get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'super_admin';
+    }
+
+    // AI Models collection: Admins can read/write
+    match /ai_models/{modelId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Settings collection (e.g., settings/config): Admins can read/write
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Story Generation Requests: User creates, Admin reads/updates
+    match /story_generation_requests/{requestId} {
+        allow read: if isAdmin() || isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
+        allow update: if isAdmin(); // Only admin/backend updates status/result
+    }
+    
+    // Sequel Generation Requests: User creates, Admin reads/updates
+    match /sequel_generation_requests/{requestId} {
+        allow read: if isAdmin() || isOwner(resource.data.userId);
+        allow create: if isOwner(request.resource.data.userId);
+        allow update: if isAdmin(); // Only admin/backend updates status/result
+    }
+    
+    // Add other collections as needed (e.g., activity logs, error logs)
+    // Activity Logs: Admins read/write?
+    match /admin_activity_logs/{logId} {
+        allow read, write: if isAdmin();
+    }
+    match /user_sessions/{sessionId} {
+        allow read: if isAdmin();
+        // Users might create their own session docs on login?
+        allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    // Error Logs: Admins read/write?
+    match /error_logs/{logId} {
+         allow read, write: if isAdmin();
+    }
+
+  }
+}
+

@@ -1,0 +1,48 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "stories",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "stories",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "isSequel",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    // Removed the single-field index for stories.createdAt DESC as Firestore handles this automatically.
+    {
+      "collectionGroup": "profiles",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+    // Note: Single-field indexes (like just 'createdAt' or just 'status') 
+    // are often automatically created by Firestore, but explicitly defining 
+    // composite indexes needed for specific queries is crucial.
+  ],
+  "fieldOverrides": []
+}
+

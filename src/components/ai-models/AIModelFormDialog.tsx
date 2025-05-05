@@ -95,18 +95,14 @@ export const AIModelFormDialog: React.FC<AIModelFormDialogProps> = ({ model, ope
     let success = false;
     try {
       if (isEditing && model?.id) {
-        // Update existing model
-        // Exclude apiKey from direct update for security? Or handle securely.
-        const { apiKey, ...updateData } = data;
-        success = await updateAIModel(model.id, updateData);
+        // Update existing model - include apiKey if provided
+        success = await updateAIModel(model.id, data); // Pass the whole data object
         if (success) {
           toast({ title: "Model Updated", description: `Model '${data.name}' has been updated.` });
         }
       } else {
-        // Add new model
-        // Exclude apiKey from direct save for security? Or handle securely.
-        const { apiKey, ...addData } = data;
-        const newModelId = await addAIModel(addData);
+        // Add new model - include apiKey if provided
+        const newModelId = await addAIModel(data); // Pass the whole data object
         success = !!newModelId;
         if (success) {
           toast({ title: "Model Added", description: `Model '${data.name}' has been added.` });

@@ -6,15 +6,21 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LayoutProvider } from "@/contexts/LayoutContext";
 import AdminLayout from "@/components/layout/AdminLayout";
-import Login from "@/pages/Login";
+import Login from "@/pages/Login"; // Reinstated old login component
+// import LoginV2 from "@/pages/LoginV2"; // Commented out new login component
 import Dashboard from "@/pages/Dashboard";
 import UserManagement from "@/pages/UserManagement";
-import StoryManagement from "@/pages/StoryManagement"; // Added import
-import ContentModeration from "@/pages/ContentModeration"; // Added import
-import AIModelManagement from "@/pages/AIModelManagement"; // Added import
-import Analytics from "@/pages/Analytics"; // Added import
-import Settings from "@/pages/Settings"; // Added import
+import StoryManagement from "@/pages/StoryManagement";
+import ContentModeration from "@/pages/ContentModeration";
+import AIModelManagement from "@/pages/AIModelManagement";
+import AISettingsPage from "@/pages/AISettings";
+import Analytics from "@/pages/Analytics";
+import Settings from "@/pages/Settings";
+import ActivityLog from "@/pages/ActivityLog";
+import SystemHealth from "@/pages/SystemHealth";
+import ErrorLog from "@/pages/ErrorLog";
 import NotFound from "@/pages/NotFound";
+import DebugAuth from "@/pages/DebugAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,16 +33,14 @@ const queryClient = new QueryClient({
 
 // Simplified Protected route wrapper component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth(); // Added isLoading
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    // Optional: Show a loading indicator while checking auth state
     return <div className="flex items-center justify-center h-screen">
       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
     </div>;
   }
 
-  // If user is not authenticated, redirect to login
   if (!isAuthenticated) {
     console.log("ProtectedRoute: Not authenticated, redirecting to /login");
     return <Navigate to="/login" replace />;
@@ -48,16 +52,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Simplified Public route wrapper component (accessible only if NOT authenticated)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth(); // Added isLoading
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    // Optional: Show a loading indicator while checking auth state
     return <div className="flex items-center justify-center h-screen">
       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
     </div>;
   }
 
-  // If already authenticated, redirect to dashboard
   if (isAuthenticated) {
     console.log("PublicRoute: Authenticated, redirecting to /");
     return <Navigate to="/" replace />;
@@ -72,8 +74,13 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={
         <PublicRoute>
-          <Login />
+          <Login /> {/* Use the original Login component */}
         </PublicRoute>
+      } />
+
+      {/* Debug route - accessible without authentication */}
+      <Route path="/debug-auth" element={
+        <DebugAuth />
       } />
 
       {/* All authenticated routes go under AdminLayout */}
@@ -83,14 +90,19 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/analytics" element={<Analytics />} /> {/* Added route */}
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/users" element={<UserManagement />} />
-        <Route path="/stories" element={<StoryManagement />} /> {/* Added route */}
-        <Route path="/moderation" element={<ContentModeration />} /> {/* Added route */}
-        <Route path="/ai-models" element={<AIModelManagement />} /> {/* Added route */}
-        <Route path="/settings" element={<Settings />} /> {/* Added route */}
+        <Route path="/stories" element={<StoryManagement />} />
+        <Route path="/moderation" element={<ContentModeration />} />
+        <Route path="/content-moderation" element={<Navigate to="/moderation" replace />} />
+        <Route path="/ai-models" element={<AIModelManagement />} />
+        <Route path="/ai-settings" element={<AISettingsPage />} />
+        <Route path="/activity-log" element={<ActivityLog />} />
+        <Route path="/system-health" element={<SystemHealth />} />
+        <Route path="/error-log" element={<ErrorLog />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
-      
+
       {/* Catch-all 404 route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -114,4 +126,3 @@ const App = () => (
 );
 
 export default App;
-

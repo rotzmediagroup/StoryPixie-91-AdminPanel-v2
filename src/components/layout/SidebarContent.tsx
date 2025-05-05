@@ -17,7 +17,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Gauge, // Use for Dashboard
-  Shield // Use for Moderation
+  Shield, // Use for Moderation
+  SlidersHorizontal // New icon for AI Settings
 } from 'lucide-react';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -75,7 +76,8 @@ export const SidebarContent: React.FC = () => {
   
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
+    // Check for exact match or if the path starts with the href and has a trailing slash or is the end
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
@@ -157,9 +159,16 @@ export const SidebarContent: React.FC = () => {
             active={isActive("/ai-models")} 
             minimized={!isSidebarOpen && !isMobile} 
           />
+          <NavItem 
+            icon={SlidersHorizontal} // Changed icon for AI Settings
+            label="AI Settings" 
+            href="/ai-settings" 
+            active={isActive("/ai-settings")} 
+            minimized={!isSidebarOpen && !isMobile} 
+          />
            <NavItem 
             icon={Settings} 
-            label="Settings" 
+            label="Admin Settings" // Renamed for clarity
             href="/settings" 
             active={isActive("/settings")} 
             minimized={!isSidebarOpen && !isMobile} 

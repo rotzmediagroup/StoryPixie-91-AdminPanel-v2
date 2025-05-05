@@ -1,4 +1,3 @@
-
 // Firebase configuration for the admin panel
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
@@ -9,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAWG04hMfpQjNNl347l-iDT2DTCknSDVbw",
   authDomain: "storypixie-v1.firebaseapp.com",
   projectId: "storypixie-v1",
-  storageBucket: "storypixie-v1.firebasestorage.app",
+  storageBucket: "storypixie-v1.appspot.com", // Corrected storageBucket value
   messagingSenderId: "390197904613",
   appId: "1:390197904613:web:8dc7c04b3ef467ea87c00c"
 };

@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { updateUserStatus } from "@/lib/firestoreUtils"; // Import the update function
 import { toast } from "@/hooks/use-toast"; // Import toast for feedback
 
+import { EditPixieDustDialog } from "./EditPixieDustDialog"; // Import the dialog
+
 // Helper function to format date
 const formatDate = (timestamp: any): string => {
   if (!timestamp || !timestamp.toDate) return "N/A";
@@ -114,6 +116,24 @@ export const userColumns: ColumnDef<User>[] = [
     },
     cell: ({ row }) => <div>{formatDate(row.getValue("createdAt"))}</div>,
   },
+  // Purple Pixie Dust Column
+  {
+    accessorKey: "pixieDust.purple",
+    header: "Purple Dust",
+    cell: ({ row }) => {
+      const pixieDust = row.original.pixieDust;
+      return <div>{pixieDust?.purple ?? 0}</div>; // Display 0 if undefined
+    },
+  },
+  // Gold Pixie Dust Column
+  {
+    accessorKey: "pixieDust.gold",
+    header: "Gold Dust",
+    cell: ({ row }) => {
+      const pixieDust = row.original.pixieDust;
+      return <div>{pixieDust?.gold ?? 0}</div>; // Display 0 if undefined
+    },
+  },
   // Status Column (Example - needs actual status field in User type)
   {
     accessorKey: "status", // Assuming a 'status' field exists (e.g., 'active', 'inactive', 'banned')
@@ -142,31 +162,37 @@ export const userColumns: ColumnDef<User>[] = [
       const banActionText = currentStatus === "blocked" ? "Unban User" : "Ban User";
 
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(user.id)}
-            >
-              Copy User ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => alert(`Viewing details for ${user.id} (Not Implemented)`)}>View User Details</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => alert(`Editing user ${user.id} (Not Implemented)`)}>Edit User</DropdownMenuItem>
-            <DropdownMenuItem 
-              className={currentStatus === "blocked" ? "text-green-600" : "text-destructive"}
-              onClick={() => handleBanUser(user.id, currentStatus)}
-            >
-              {banActionText}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <EditPixieDustDialog user={user} onSuccess={() => { /* Optional: Trigger data refresh */ }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(user.id)}
+              >
+                Copy User ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => alert(`Viewing details for ${user.id} (Not Implemented)`)}>View User Details</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => alert(`Editing user ${user.id} (Not Implemented)`)}>Edit User</DropdownMenuItem>
+              {/* Wrap the Edit Pixie Dust item in the Dialog Trigger */}
+              <DialogTrigger asChild>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit Pixie Dust</DropdownMenuItem>
+              </DialogTrigger>
+              <DropdownMenuItem 
+                className={currentStatus === "blocked" ? "text-green-600" : "text-destructive"}
+                onClick={() => handleBanUser(user.id, currentStatus)}
+              >
+                {banActionText}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </EditPixieDustDialog>
       );
     },
   },

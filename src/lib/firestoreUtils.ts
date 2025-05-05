@@ -1,6 +1,6 @@
-import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'; // Added addDoc, deleteDoc, serverTimestamp
+import { collection, collectionGroup, getDocs, query, limit, getCountFromServer, where, Timestamp, orderBy, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore'; // Added getDoc, setDoc
 import { db } from './firebase';
-import { User, UserStatus, Story, AIModel } from '@/types'; // Added AIModel type
+import { User, UserStatus, Story, AIModel, Profile, CharacterSet, AISettings, ChartDataPoint } from '@/types'; // Added AISettings, ChartDataPoint types
 
 // --- User Functions ---
 
@@ -36,6 +36,23 @@ export const getAllUsers = async (): Promise<User[]> => {
   }
 };
 
+// Function to update a user's Pixie Dust balance
+export const updateUserPixieDust = async (userId: string, purpleAmount: number, goldAmount: number): Promise<boolean> => {
+  try {
+    const userDocRef = doc(db, 'users', userId);
+    // Use dot notation to update nested fields
+    await updateDoc(userDocRef, {
+      'pixieDust.purple': purpleAmount,
+      'pixieDust.gold': goldAmount
+    });
+    console.log(`User ${userId} Pixie Dust updated to Purple: ${purpleAmount}, Gold: ${goldAmount}`);
+    return true;
+  } catch (error) {
+    console.error(`Error updating Pixie Dust for user ${userId}:`, error);
+    return false;
+  }
+};
+
 // Function to update a user's status
 export const updateUserStatus = async (userId: string, status: UserStatus): Promise<boolean> => {
   try {
@@ -67,79 +84,186 @@ export const getUserSample = async (count: number = 5): Promise<User[]> => {
   }
 };
 
+// --- Profile & Character Set Functions ---
+
+// Function to get ALL profiles using a collection group query
+// Requires a Firestore index on the 'profiles' collection group
+export const getAllProfiles = async (): Promise<Profile[]> => {
+  console.log('[getAllProfiles] Attempting to fetch all profiles...');
+  try {
+    const profilesGroupRef = collectionGroup(db, 'profiles');
+    // Simple query for now, might need ordering later
+    const q = query(profilesGroupRef, orderBy('createdAt', 'desc')); // Assuming profiles have createdAt
+    console.log('[getAllProfiles] Query created:', q);
+    const querySnapshot = await getDocs(q);
+    console.log(`[getAllProfiles] Query successful. Found ${querySnapshot.size} profiles.`);
+    const profiles: Profile[] = [];
+    querySnapshot.forEach((doc) => {
+      profiles.push({ id: doc.id, ...doc.data() } as Profile);
+    });
+    console.log('[getAllProfiles] Profiles processed:', profiles);
+    return profiles;
+  } catch (error) {
+    console.error(`[getAllProfiles] Error getting all profiles (collection group query):`, error);
+    if (error instanceof Error && error.message.includes('indexes')) {
+      console.error("[getAllProfiles] Firestore index required: Ensure you have a collection group index for 'profiles', potentially ordered by 'createdAt'.");
+    }
+    throw error;
+  }
+};
+
+// Function to get ALL character sets from all profiles
+// This leverages getAllProfiles and extracts character sets.
+// Note: This might be inefficient for very large numbers of profiles/character sets.
+export const getAllCharacterSets = async (): Promise<CharacterSet[]> => {
+  console.log('[getAllCharacterSets] Attempting to fetch all character sets...');
+  try {
+    const profiles = await getAllProfiles();
+    const allCharacterSets: CharacterSet[] = [];
+    profiles.forEach(profile => {
+      if (profile.characterSets && Array.isArray(profile.characterSets)) {
+        // Add profileId and userId for context if needed later
+        // For now, just collecting the sets
+        allCharacterSets.push(...profile.characterSets);
+      }
+    });
+    console.log(`[getAllCharacterSets] Extracted ${allCharacterSets.length} character sets from ${profiles.length} profiles.`);
+    return allCharacterSets;
+  } catch (error) {
+    console.error(`[getAllCharacterSets] Error getting character sets:`, error);
+    // Error likely originated in getAllProfiles, re-throw it
+    throw error;
+  }
+};
+
+
 // --- Story Functions ---
 
 // Function to get ALL stories using a collection group query
 // Requires a Firestore index on the 'stories' collection group, ordered by 'createdAt'
 export const getAllStories = async (): Promise<Story[]> => {
+  console.log('[getAllStories] Attempting to fetch all stories...');
   try {
     const storiesGroupRef = collectionGroup(db, 'stories');
     const q = query(storiesGroupRef, orderBy('createdAt', 'desc')); // Order by creation date, newest first
+    console.log('[getAllStories] Query created:', q);
     const querySnapshot = await getDocs(q);
+    console.log(`[getAllStories] Query successful. Found ${querySnapshot.size} documents.`);
     const stories: Story[] = [];
     querySnapshot.forEach((doc) => {
-      // Extract parent path segments to get userId and kidId
+      // Extract parent path segments to get userId and profileId
       const pathSegments = doc.ref.path.split('/');
-      // Expected path: users/{userId}/kids/{kidId}/stories/{storyId}
-      const userId = pathSegments.length >= 2 ? pathSegments[1] : 'unknown';
-      const kidId = pathSegments.length >= 4 ? pathSegments[3] : 'unknown';
+      // Expected path: users/{userId}/profiles/{profileId}/stories/{storyId}
+      const userId = pathSegments.length >= 4 ? pathSegments[1] : 'unknown'; // Adjusted index
+      const profileId = pathSegments.length >= 4 ? pathSegments[3] : 'unknown'; // Adjusted index
       
       stories.push({
         id: doc.id,
         userId: userId,
-        kidId: kidId,
+        profileId: profileId, 
         ...doc.data(),
       } as Story);
     });
+    console.log('[getAllStories] Stories processed:', stories);
     return stories;
   } catch (error) {
-    console.error(`Error getting all stories (collection group query):`, error);
-    // Potentially suggest creating the index in the error message or logs
+    console.error(`[getAllStories] Error getting all stories (collection group query):`, error);
     if (error instanceof Error && error.message.includes('indexes')) {
-      console.error("Firestore index required: Ensure you have a collection group index for 'stories' ordered by 'createdAt' descending.");
+      console.error("[getAllStories] Firestore index required: Ensure you have a collection group index for 'stories' ordered by 'createdAt' descending.");
     }
-    return [];
+    throw error;
+  }
+};
+
+// Function to get ALL sequels using a collection group query
+// Requires a Firestore index on the 'stories' collection group, filtering by 'isSequel' and ordered by 'createdAt'
+export const getAllSequels = async (): Promise<Story[]> => {
+  console.log('[getAllSequels] Attempting to fetch all sequels...');
+  try {
+    const storiesGroupRef = collectionGroup(db, 'stories');
+    // Query for stories where isSequel is true, order by creation date
+    const q = query(storiesGroupRef, where('isSequel', '==', true), orderBy('createdAt', 'desc'));
+    console.log('[getAllSequels] Query created:', q);
+    const querySnapshot = await getDocs(q);
+    console.log(`[getAllSequels] Query successful. Found ${querySnapshot.size} sequels.`);
+    const sequels: Story[] = [];
+    querySnapshot.forEach((doc) => {
+      const pathSegments = doc.ref.path.split('/');
+      const userId = pathSegments.length >= 4 ? pathSegments[1] : 'unknown';
+      const profileId = pathSegments.length >= 4 ? pathSegments[3] : 'unknown';
+      
+      sequels.push({
+        id: doc.id,
+        userId: userId,
+        profileId: profileId,
+        ...doc.data(),
+      } as Story);
+    });
+    console.log('[getAllSequels] Sequels processed:', sequels);
+    return sequels;
+  } catch (error) {
+    console.error(`[getAllSequels] Error getting sequels (collection group query):`, error);
+    if (error instanceof Error && error.message.includes('indexes')) {
+      console.error("[getAllSequels] Firestore index required: Ensure you have a collection group index for 'stories' filtering by 'isSequel' and ordered by 'createdAt' descending.");
+    }
+    throw error;
   }
 };
 
 // Function to get stories with status 'flagged'
 // Requires a Firestore index on the 'stories' collection group, filtering by 'status' and ordered by 'createdAt'
 export const getFlaggedStories = async (): Promise<Story[]> => {
+  console.log('[getFlaggedStories] DEBUG: Function called.'); // ADDED DEBUG LOG
   try {
     const storiesGroupRef = collectionGroup(db, 'stories');
+    console.log('[getFlaggedStories] DEBUG: Collection group reference created.'); // ADDED DEBUG LOG
     // Query for stories where status is 'flagged', order by creation date
     const q = query(storiesGroupRef, where('status', '==', 'flagged'), orderBy('createdAt', 'desc'));
+    console.log('[getFlaggedStories] DEBUG: Query created:', q); // ADDED DEBUG LOG
+    
+    console.log('[getFlaggedStories] DEBUG: Attempting getDocs(q)...'); // ADDED DEBUG LOG
     const querySnapshot = await getDocs(q);
+    console.log(`[getFlaggedStories] DEBUG: getDocs successful. Found ${querySnapshot.size} documents.`); // ADDED DEBUG LOG
+    
     const stories: Story[] = [];
+    console.log('[getFlaggedStories] DEBUG: Processing documents...'); // ADDED DEBUG LOG
     querySnapshot.forEach((doc) => {
+      console.log(`[getFlaggedStories] DEBUG: Processing doc ${doc.id}`); // ADDED DEBUG LOG
       const pathSegments = doc.ref.path.split('/');
-      const userId = pathSegments.length >= 2 ? pathSegments[1] : 'unknown';
-      const kidId = pathSegments.length >= 4 ? pathSegments[3] : 'unknown';
+      const userId = pathSegments.length >= 4 ? pathSegments[1] : 'unknown';
+      const profileId = pathSegments.length >= 4 ? pathSegments[3] : 'unknown';
       
       stories.push({
         id: doc.id,
         userId: userId,
-        kidId: kidId,
+        profileId: profileId,
         ...doc.data(),
       } as Story);
     });
+    console.log('[getFlaggedStories] DEBUG: Stories processed:', stories); // ADDED DEBUG LOG
     return stories;
-  } catch (error) {
-    console.error(`Error getting flagged stories (collection group query):`, error);
+  } catch (error: any) { // Explicitly type error as any
+    console.error(`[getFlaggedStories] DEBUG: Error caught!`, error); // ADDED DEBUG LOG
+    console.error(`[getFlaggedStories] Error Code: ${error.code}`); // ADDED DEBUG LOG
+    console.error(`[getFlaggedStories] Error Message: ${error.message}`); // ADDED DEBUG LOG
     if (error instanceof Error && error.message.includes('indexes')) {
-      console.error("Firestore index required: Ensure you have a collection group index for 'stories' filtering by 'status' and ordered by 'createdAt' descending.");
+      console.error("[getFlaggedStories] Firestore index required: Ensure you have a collection group index for 'stories' filtering by 'status' and ordered by 'createdAt' descending.");
     }
-    return [];
+    // Re-throw the error so the calling component knows something went wrong
+    throw error; 
+  } finally {
+      console.log('[getFlaggedStories] DEBUG: Fetch attempt finished.'); // ADDED DEBUG LOG
   }
 };
 
 // Function to update a story's status
-// Note: Requires knowing the full path to the story document (userId, kidId, storyId)
-export const updateStoryStatus = async (userId: string, kidId: string, storyId: string, status: Story['status']): Promise<boolean> => {
+// Note: Requires knowing the full path to the story document (userId, profileId, storyId)
+export const updateStoryStatus = async (userId: string, profileId: string, storyId: string, status: Story['status']): Promise<boolean> => {
   try {
-    const storyDocRef = doc(db, 'users', userId, 'kids', kidId, 'stories', storyId);
+    // Adjusted path based on schema: users/{userId}/profiles/{profileId}/stories/{storyId}
+    const storyDocRef = doc(db, 'users', userId, 'profiles', profileId, 'stories', storyId);
     await updateDoc(storyDocRef, { status: status });
-    console.log(`Story ${storyId} (User: ${userId}, Kid: ${kidId}) status updated to ${status}`);
+    console.log(`Story ${storyId} (User: ${userId}, Profile: ${profileId}) status updated to ${status}`);
     return true;
   } catch (error) {
     console.error(`Error updating status for story ${storyId}:`, error);
@@ -148,7 +272,7 @@ export const updateStoryStatus = async (userId: string, kidId: string, storyId: 
 };
 
 
-// Function to get the total count of stories across all users and kids
+// Function to get the total count of stories across all users and profiles
 // Uses collection group query - requires Firestore index
 export const getTotalStoryCount = async (): Promise<number> => {
   try {
@@ -208,7 +332,7 @@ export const addAIModel = async (modelData: Omit<AIModel, 'id'>): Promise<string
     const modelsCollection = collection(db, 'ai_models');
     const docRef = await addDoc(modelsCollection, {
       ...modelData,
-      // Add timestamps if needed, e.g., createdAt: serverTimestamp()
+      createdAt: serverTimestamp() // Add createdAt timestamp
     });
     console.log(`AI Model added with ID: ${docRef.id}`);
     return docRef.id;
@@ -219,12 +343,12 @@ export const addAIModel = async (modelData: Omit<AIModel, 'id'>): Promise<string
 };
 
 // Function to update an existing AI Model configuration
-export const updateAIModel = async (modelId: string, updates: Partial<AIModel>): Promise<boolean> => {
+export const updateAIModel = async (modelId: string, updates: Partial<Omit<AIModel, 'id'>>): Promise<boolean> => {
   try {
     const modelDocRef = doc(db, 'ai_models', modelId);
     await updateDoc(modelDocRef, {
       ...updates,
-      // Add timestamps if needed, e.g., updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp() // Add updatedAt timestamp
     });
     console.log(`AI Model ${modelId} updated successfully.`);
     return true;
@@ -247,89 +371,67 @@ export const deleteAIModel = async (modelId: string): Promise<boolean> => {
   }
 };
 
-// --- Dashboard/Analytics Functions ---
+// --- AI Settings Functions (New) ---
 
-// Function to get daily user signups for the last N days
-export const getDailyUserSignups = async (days: number = 7): Promise<{ date: string; count: number }[]> => {
-  const signupData: { [key: string]: number } = {};
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - days + 1);
-  startDate.setHours(0, 0, 0, 0);
-
+// Function to get the current AI settings
+// Assumes settings are stored in a single document named 'config' within the 'settings' collection
+export const getAISettings = async (): Promise<AISettings | null> => {
   try {
-    const usersCollection = collection(db, 'users');
-    // Assuming users have a 'createdAt' field (Timestamp)
-    const q = query(usersCollection, where('createdAt', '>=', Timestamp.fromDate(startDate)), orderBy('createdAt', 'asc'));
-    const querySnapshot = await getDocs(q);
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.createdAt && data.createdAt.toDate) {
-        const dateStr = data.createdAt.toDate().toISOString().split('T')[0]; // YYYY-MM-DD
-        signupData[dateStr] = (signupData[dateStr] || 0) + 1;
-      }
-    });
-
-    // Fill in missing dates with 0 count
-    const result = [];
-    for (let d = 0; d < days; d++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + d);
-      const dateStr = currentDate.toISOString().split('T')[0];
-      result.push({ date: dateStr, count: signupData[dateStr] || 0 });
+    const settingsDocRef = doc(db, 'settings', 'config');
+    const docSnap = await getDoc(settingsDocRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as AISettings;
+    } else {
+      console.log("AI settings document (settings/config) does not exist.");
+      return null;
     }
-    return result;
-
   } catch (error) {
-    console.error(`Error getting daily user signups for last ${days} days:`, error);
-    return [];
+    console.error("Error getting AI settings:", error);
+    return null;
   }
 };
 
-// Function to get daily story generations for the last N days
-// Uses collection group query - requires Firestore index
-export const getDailyStoryGenerations = async (days: number = 7): Promise<{ date: string; count: number }[]> => {
-  const generationData: { [key: string]: number } = {};
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - days + 1);
-  startDate.setHours(0, 0, 0, 0);
-
+// Function to save or update the AI settings
+// Uses setDoc with merge: true to create or update the 'config' document
+export const saveAISettings = async (settings: Partial<AISettings>): Promise<boolean> => {
   try {
-    const storiesGroupRef = collectionGroup(db, 'stories');
-    const q = query(storiesGroupRef, where('createdAt', '>=', Timestamp.fromDate(startDate)), orderBy('createdAt', 'asc'));
-    const querySnapshot = await getDocs(q);
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.createdAt && data.createdAt.toDate) {
-        const dateStr = data.createdAt.toDate().toISOString().split('T')[0]; // YYYY-MM-DD
-        generationData[dateStr] = (generationData[dateStr] || 0) + 1;
-      }
-    });
-
-    // Fill in missing dates with 0 count
-    const result = [];
-    for (let d = 0; d < days; d++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + d);
-      const dateStr = currentDate.toISOString().split('T')[0];
-      result.push({ date: dateStr, count: generationData[dateStr] || 0 });
-    }
-    return result;
-
+    const settingsDocRef = doc(db, 'settings', 'config');
+    await setDoc(settingsDocRef, {
+      ...settings,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log("AI settings saved successfully.");
+    return true;
   } catch (error) {
-    console.error(`Error getting daily story generations for last ${days} days:`, error);
-     if (error instanceof Error && error.message.includes('indexes')) {
-      console.error("Firestore index required: Ensure you have a collection group index for 'stories' with 'createdAt' field.");
-    }
-    return [];
+    console.error("Error saving AI settings:", error);
+    return false;
   }
 };
 
+// --- Dashboard Chart Functions (Stubs Added) ---
 
-// Placeholder for fetching other dashboard stats (e.g., active users, revenue)
-// export const getActiveUsersCount = async (): Promise<number> => { ... };
-// export const getTotalRevenue = async (): Promise<number> => { ... };
+// Stub function for daily user signups - Replace with actual implementation later
+export const getDailyUserSignups = async (days: number = 7): Promise<ChartDataPoint[]> => {
+  console.warn("[getDailyUserSignups] STUB FUNCTION: Returning empty data. Implement actual logic.");
+  // In a real implementation, query 'users' collection, group by day, count signups
+  // Example structure:
+  // const data: ChartDataPoint[] = [];
+  // for (let i = 0; i < days; i++) {
+  //   const date = new Date();
+  //   date.setDate(date.getDate() - i);
+  //   const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  //   // Fetch count for dateString
+  //   data.push({ date: dateString, value: Math.floor(Math.random() * 10) }); // Replace with actual count
+  // }
+  // return data.reverse(); // Ensure chronological order
+  return [];
+};
+
+// Stub function for daily story generations - Replace with actual implementation later
+export const getDailyStoryGenerations = async (days: number = 7): Promise<ChartDataPoint[]> => {
+  console.warn("[getDailyStoryGenerations] STUB FUNCTION: Returning empty data. Implement actual logic.");
+  // In a real implementation, query 'stories' collection group, group by day, count stories
+  // Similar logic to getDailyUserSignups, but querying 'stories'
+  return [];
+};
 

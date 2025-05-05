@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -51,65 +51,16 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Calendar
+  Calendar,
+  Loader2, // Added Loader icon
+  AlertCircle // Added Alert icon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAllStories, updateStoryStatus } from '@/lib/firestoreUtils'; // Import real data fetching
+import { Story } from '@/types'; // Import Story type
+import { format } from 'date-fns'; // For formatting dates
 
-// Mock data for stories
-const mockStories = [
-  { 
-    id: 's-001', 
-    title: 'The Magic Forest', 
-    author: 'AI Assistant', 
-    status: 'published', 
-    category: 'Adventure',
-    createdAt: '2024-04-15',
-    readCount: 1245,
-    rating: 4.8,
-  },
-  { 
-    id: 's-002', 
-    title: 'Space Explorer Journey', 
-    author: 'AI Assistant', 
-    status: 'draft', 
-    category: 'Sci-Fi',
-    createdAt: '2024-04-28',
-    readCount: 0,
-    rating: 0,
-  },
-  { 
-    id: 's-003', 
-    title: 'The Friendly Dragon', 
-    author: 'AI Assistant', 
-    status: 'review', 
-    category: 'Fantasy',
-    createdAt: '2024-04-22',
-    readCount: 352,
-    rating: 4.2,
-  },
-  { 
-    id: 's-004', 
-    title: 'Underwater Adventures', 
-    author: 'AI Assistant', 
-    status: 'published', 
-    category: 'Educational',
-    createdAt: '2024-04-01',
-    readCount: 2876,
-    rating: 4.9,
-  },
-  { 
-    id: 's-005', 
-    title: 'Dinosaur Friends', 
-    author: 'AI Assistant', 
-    status: 'published', 
-    category: 'Educational',
-    createdAt: '2024-03-18',
-    readCount: 3254,
-    rating: 4.7,
-  }
-];
-
-// Mock data for templates
+// Mock data for templates (keep for now, can replace later)
 const mockTemplates = [
   {
     id: 't-001',
@@ -119,40 +70,63 @@ const mockTemplates = [
     lastUsed: '2024-04-30',
     categories: ['Adventure', 'Action']
   },
-  {
-    id: 't-002',
-    name: 'Educational Story',
-    description: 'Template for creating educational stories about animals and nature',
-    usage: 98,
-    lastUsed: '2024-04-28',
-    categories: ['Educational', 'Nature']
-  },
-  {
-    id: 't-003',
-    name: 'Bedtime Story',
-    description: 'Short, calming stories perfect for bedtime reading',
-    usage: 203,
-    lastUsed: '2024-04-29',
-    categories: ['Calming', 'Sleep']
-  },
-  {
-    id: 't-004',
-    name: 'Interactive Adventure',
-    description: 'Choose-your-own-adventure style template with branching paths',
-    usage: 76,
-    lastUsed: '2024-04-25',
-    categories: ['Interactive', 'Adventure']
-  }
+  // ... other templates
 ];
 
 const Content = () => {
   const { toast } = useToast();
   const [searchValue, setSearchValue] = useState("");
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
-  
-  const filteredStories = mockStories.filter(story => 
+  const [stories, setStories] = useState<Story[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch stories on component mount
+  useEffect(() => {
+    const fetchStories = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedStories = await getAllStories();
+        setStories(fetchedStories);
+      } catch (err) {
+        console.error("Failed to fetch stories:", err);
+        setError("Failed to load stories. Please check console or try again later.");
+        toast({
+          title: "Error fetching stories",
+          description: err instanceof Error ? err.message : "An unknown error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStories();
+  }, [toast]); // Added toast to dependency array
+
+  const refreshStories = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetchedStories = await getAllStories();
+      setStories(fetchedStories);
+      toast({ title: "Stories refreshed" });
+    } catch (err) {
+      console.error("Failed to refresh stories:", err);
+      setError("Failed to refresh stories. Please check console or try again later.");
+      toast({
+        title: "Error refreshing stories",
+        description: err instanceof Error ? err.message : "An unknown error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredStories = stories.filter(story => 
     story.title.toLowerCase().includes(searchValue.toLowerCase()) ||
-    story.category.toLowerCase().includes(searchValue.toLowerCase())
+    (story.prompt && story.prompt.toLowerCase().includes(searchValue.toLowerCase())) // Search prompt too
   );
   
   const filteredTemplates = mockTemplates.filter(template => 
@@ -160,37 +134,55 @@ const Content = () => {
     template.description.toLowerCase().includes(searchValue.toLowerCase())
   );
 
-  const handleDelete = (id: string) => {
+  // --- Action Handlers --- 
+  // TODO: Implement actual logic for edit, delete, view, bulk actions
+  // For delete, need to call a firestoreUtils function (to be created)
+  // For edit/view, might need dialogs or separate pages
+
+  const handleDelete = async (story: Story) => {
+    // TODO: Implement deleteStory in firestoreUtils and call it here
+    // Need userId, profileId, storyId
+    console.log("Attempting to delete:", story);
     toast({
-      title: "Content deleted",
-      description: `The item with ID ${id} has been deleted successfully.`,
+      title: "Delete action (Not Implemented)",
+      description: `Deletion for story ${story.id} needs implementation.`,
+      variant: "destructive"
+    });
+    // Example: await deleteStory(story.userId, story.profileId, story.id);
+    // await refreshStories(); 
+  };
+
+  const handleEdit = (story: Story) => {
+    // TODO: Implement edit functionality (e.g., open a dialog)
+    console.log("Attempting to edit:", story);
+    toast({
+      title: "Edit action (Not Implemented)",
+      description: `Editing for story ${story.id} needs implementation.`,
     });
   };
 
-  const handleEdit = (id: string) => {
+  const handleView = (story: Story) => {
+    // TODO: Implement view functionality (e.g., open a dialog/modal)
+    console.log("Attempting to view:", story);
     toast({
-      title: "Edit content",
-      description: `Editing functionality for ${id} will be implemented soon.`,
-    });
-  };
-
-  const handleView = (id: string) => {
-    toast({
-      title: "View content",
-      description: `Viewing functionality for ${id} will be implemented soon.`,
+      title: "View action (Not Implemented)",
+      description: `Viewing details for story ${story.id} needs implementation.`,
     });
   };
 
   const handleBulkAction = (action: string) => {
+    // TODO: Implement bulk actions (publish, archive, delete, export)
     toast({
-      title: `Bulk ${action}`,
-      description: `${action} performed on ${selectedStories.length} items.`,
+      title: `Bulk ${action} (Not Implemented)`,
+      description: `${action} on ${selectedStories.length} items needs implementation.`,
     });
-    setSelectedStories([]);
+    // Potentially loop through selectedStories and call individual action functions
+    // setSelectedStories([]); // Clear selection after action
   };
 
-  const toggleSelectAll = (checked: boolean) => {
-    if (checked) {
+  // --- Selection Handlers --- 
+  const toggleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
       setSelectedStories(filteredStories.map(story => story.id));
     } else {
       setSelectedStories([]);
@@ -198,23 +190,37 @@ const Content = () => {
   };
 
   const toggleSelectStory = (id: string) => {
-    if (selectedStories.includes(id)) {
-      setSelectedStories(selectedStories.filter(storyId => storyId !== id));
-    } else {
-      setSelectedStories([...selectedStories, id]);
+    setSelectedStories(prev => 
+      prev.includes(id) ? prev.filter(storyId => storyId !== id) : [...prev, id]
+    );
+  };
+
+  // --- UI Helpers --- 
+  const getStatusBadge = (status: Story['status']) => {
+    switch(status) {
+      case 'completed':
+        return <Badge className="bg-green-500 hover:bg-green-600">Completed</Badge>;
+      case 'pending':
+      case 'generating':
+        return <Badge variant="outline" className="border-blue-500 text-blue-500">Generating</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
+      case 'flagged':
+         return <Badge variant="destructive" className="bg-yellow-500 hover:bg-yellow-600 text-black">Flagged</Badge>;
+      default:
+        return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'published':
-        return <Badge className="bg-green-500 hover:bg-green-600">Published</Badge>;
-      case 'draft':
-        return <Badge variant="outline" className="border-amber-500 text-amber-500">Draft</Badge>;
-      case 'review':
-        return <Badge className="bg-blue-500 hover:bg-blue-600">In Review</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const formatDate = (timestamp: any): string => {
+    if (!timestamp || !timestamp.toDate) {
+      return 'N/A';
+    }
+    try {
+      return format(timestamp.toDate(), 'yyyy-MM-dd HH:mm');
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return 'Invalid Date';
     }
   };
 
@@ -222,36 +228,40 @@ const Content = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Content</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Content Management</h1>
           <p className="text-muted-foreground">
-            Manage stories and templates for your application
+            Manage stories, sequels, character sets, and templates.
           </p>
         </div>
-        <Button>
+        {/* TODO: Add Create New functionality later */}
+        {/* <Button>
           <Plus className="mr-2 h-4 w-4" /> Create New
-        </Button>
+        </Button> */}
       </div>
 
       <Tabs defaultValue="stories" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-4"> {/* Adjusted grid columns */}
           <TabsTrigger value="stories">Stories</TabsTrigger>
+          <TabsTrigger value="sequels">Sequels</TabsTrigger> {/* Added Sequels Tab */}
+          <TabsTrigger value="characters">Character Sets</TabsTrigger> {/* Added Character Sets Tab */}
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
+        {/* --- Stories Tab --- */}
         <TabsContent value="stories" className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-2">
             <div className="flex items-center space-x-2 flex-grow">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search stories..." 
+                placeholder="Search stories by title or prompt..." 
                 className="flex-grow"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
               />
             </div>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-1" /> Filter
+              <Button variant="outline" size="sm" onClick={refreshStories} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Filter className="h-4 w-4 mr-1" />} Refresh
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={selectedStories.length === 0}>
@@ -260,19 +270,16 @@ const Content = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleBulkAction("publish")}>
+                  {/* TODO: Implement bulk actions */}
+                  <DropdownMenuItem onClick={() => handleBulkAction('flag')} className="text-yellow-600">
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    <span>Flag</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkAction('unflag')} className="text-green-600">
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    <span>Publish</span>
+                    <span>Unflag</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkAction("archive")}>
-                    <Clock className="mr-2 h-4 w-4" />
-                    <span>Archive</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkAction("export")} className="text-blue-600">
-                    <Download className="mr-2 h-4 w-4" />
-                    <span>Export</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-red-600">
+                  <DropdownMenuItem onClick={() => handleBulkAction('delete')} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />
                     <span>Delete</span>
                   </DropdownMenuItem>
@@ -287,20 +294,39 @@ const Content = () => {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox 
-                      checked={selectedStories.length === filteredStories.length && filteredStories.length > 0}
+                      checked={filteredStories.length > 0 && selectedStories.length === filteredStories.length}
+                      indeterminate={selectedStories.length > 0 && selectedStories.length < filteredStories.length}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead className="hidden md:table-cell">Category</TableHead>
+                  <TableHead className="hidden md:table-cell">User ID</TableHead>
+                  <TableHead className="hidden md:table-cell">Profile ID</TableHead>
                   <TableHead className="hidden md:table-cell">Status</TableHead>
                   <TableHead className="hidden md:table-cell">Created</TableHead>
-                  <TableHead className="hidden md:table-cell">Metrics</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStories.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <Loader2 className="mx-auto h-12 w-12 text-muted-foreground animate-spin opacity-50" />
+                      <p className="mt-2 text-lg font-medium">Loading Stories...</p>
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-red-600">
+                      <AlertCircle className="mx-auto h-12 w-12 opacity-50" />
+                      <p className="mt-2 text-lg font-medium">Error Loading Stories</p>
+                      <p className="text-sm">{error}</p>
+                      <Button onClick={refreshStories} variant="outline" size="sm" className="mt-4">
+                        Try Again
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredStories.length > 0 ? (
                   filteredStories.map(story => (
                     <TableRow key={story.id}>
                       <TableCell>
@@ -311,50 +337,41 @@ const Content = () => {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{story.title}</div>
-                        <div className="text-sm text-muted-foreground md:hidden">{story.category}</div>
+                        <div className="text-sm text-muted-foreground md:hidden">User: {story.userId}</div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{story.category}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{story.userId}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{story.profileId}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         {getStatusBadge(story.status)}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {story.createdAt}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="text-sm">
-                          {story.status === 'published' ? (
-                            <>
-                              <span className="mr-2">{story.readCount.toLocaleString()} reads</span>
-                              <span>⭐ {story.rating}</span>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground italic">No metrics yet</span>
-                          )}
+                        <div className="flex items-center text-sm">
+                          <Calendar className="mr-1 h-4 w-4 text-muted-foreground" />
+                          {formatDate(story.createdAt)}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => handleView(story.id)}
+                            onClick={() => handleView(story)}
+                            title="View Details"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => handleEdit(story.id)}
+                            onClick={() => handleEdit(story)}
+                            title="Edit Story (Not Implemented)"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
+                              <Button variant="ghost" size="icon" title="Delete Story">
+                                <Trash2 className="h-4 w-4 text-red-500" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -367,7 +384,7 @@ const Content = () => {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction 
-                                  onClick={() => handleDelete(story.id)}
+                                  onClick={() => handleDelete(story)}
                                   className="bg-red-600 hover:bg-red-700"
                                 >
                                   Delete
@@ -385,12 +402,12 @@ const Content = () => {
                       <BookOpen className="mx-auto h-12 w-12 text-muted-foreground opacity-30" />
                       <p className="mt-2 text-lg font-medium">No stories found</p>
                       <p className="text-sm text-muted-foreground">
-                        Try adjusting your search or create a new story.
+                        No stories match your search criteria, or no stories have been generated yet.
                       </p>
-                      <Button className="mt-4">
+                      {/* <Button className="mt-4">
                         <Plus className="mr-2 h-4 w-4" />
-                        Create Story
-                      </Button>
+                        Create Story (Manual?)
+                      </Button> */}
                     </TableCell>
                   </TableRow>
                 )}
@@ -399,6 +416,37 @@ const Content = () => {
           </div>
         </TabsContent>
 
+        {/* --- Sequels Tab --- */}
+        <TabsContent value="sequels" className="space-y-4">
+          {/* TODO: Implement UI for Sequels similar to Stories, using getAllSequels */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sequels</CardTitle>
+              <CardDescription>Sequels generated by users.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Sequel management UI will be implemented here, fetching data using `getAllSequels`.</p>
+              {/* Placeholder for table/list */}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- Character Sets Tab --- */}
+        <TabsContent value="characters" className="space-y-4">
+          {/* TODO: Implement UI for Character Sets, using getAllCharacterSets */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Character Sets</CardTitle>
+              <CardDescription>Character sets created by users across all profiles.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Character set management UI will be implemented here, fetching data using `getAllCharacterSets`.</p>
+              {/* Placeholder for table/list */}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- Templates Tab --- */}
         <TabsContent value="templates" className="space-y-4">
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -438,36 +486,35 @@ const Content = () => {
                           <UploadCloud className="mr-2 h-4 w-4" />
                           <span>Duplicate</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleDelete(template.id)}
-                          className="text-red-600"
-                        >
+                        <DropdownMenuItem onClick={() => handleDelete(template.id)} className="text-red-600">
                           <Trash2 className="mr-2 h-4 w-4" />
                           <span>Delete</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <CardDescription>{template.description}</CardDescription>
+                  <CardDescription className="text-xs pt-1">{template.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {template.categories.map(category => (
-                      <Badge key={category} variant="outline">{category}</Badge>
-                    ))}
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Usage: {template.usage}</span>
+                    <span>Last Used: {template.lastUsed}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground flex justify-between">
-                    <div>Used {template.usage} times</div>
-                    <div>Last used: {template.lastUsed}</div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {template.categories.map(cat => (
+                      <Badge key={cat} variant="secondary">{cat}</Badge>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
+
       </Tabs>
     </div>
   );
 };
 
 export default Content;
+

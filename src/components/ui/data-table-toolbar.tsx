@@ -9,6 +9,10 @@ import { UserStatus } from "@/types"; // Import UserStatus type
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  // Optional prop to specify the filter placeholder
+  filterPlaceholder?: string;
+  // Optional prop to specify the column ID to filter on (defaults to 'email')
+  filterColumnId?: string;
 }
 
 // Define status options for the faceted filter
@@ -21,27 +25,32 @@ const statusOptions: { label: string; value: UserStatus }[] = [
 
 export function DataTableToolbar<TData>({
   table,
+  filterPlaceholder = "Filter items...", // Default placeholder
+  filterColumnId = "email", // Default column to filter
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
+  const filterColumn = table.getColumn(filterColumnId);
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
-        {/* Email Filter Input */}
-        <Input
-          placeholder="Filter users by email..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
-          }
-          className="h-8 w-[150px] lg:w-[250px]"
-        />
-        {/* Status Filter */}
+        {/* Generic Filter Input - Render only if the specified column exists */}
+        {filterColumn && (
+          <Input
+            placeholder={filterPlaceholder}
+            value={(filterColumn.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              filterColumn.setFilterValue(event.target.value)
+            }
+            className="h-8 w-[150px] lg:w-[250px]"
+          />
+        )}
+        {/* Status Filter - Render only if 'status' column exists */}
         {table.getColumn("status") && (
           <DataTableFacetedFilter
-            column={table.getColumn("status")}
+            column={table.getColumn("status")!}
             title="Status"
-            options={statusOptions}
+            options={statusOptions} // Assuming statusOptions are relevant; might need adjustment based on context
           />
         )}
         {/* Reset Button */}

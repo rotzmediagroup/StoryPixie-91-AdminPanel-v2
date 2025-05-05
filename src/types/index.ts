@@ -7,7 +7,10 @@ export interface User {
   registrationDate: string;
   lastLoginDate: string;
   status: UserStatus;
-  credits: number;
+  pixieDust: {
+    purple: number;
+    gold: number;
+  };
   profileImage?: string;
   subscription?: {
     plan: string;
@@ -76,9 +79,12 @@ export interface AIModel {
   provider: string;
   version: string;
   active: boolean;
-  costPerToken: number;
-  maxTokens: number;
-  avgResponseTime: number;
+  apiKey?: string; // Added API Key (ensure secure storage/access)
+  costPerToken?: number; // Made optional
+  maxTokens?: number; // Made optional
+  avgResponseTime?: number; // Made optional
+  createdAt?: any; // Added from firestoreUtils
+  updatedAt?: any; // Added from firestoreUtils
 }
 
 export interface SystemHealth {
@@ -162,7 +168,7 @@ export interface AdminInvitation {
 export interface Story {
   id: string; // Firestore document ID
   userId: string; // ID of the user who owns the story
-  kidId: string; // ID of the kid profile the story belongs to
+  profileId: string; // ID of the profile the story belongs to (renamed from kidId)
   title: string;
   content: string; // The actual story text
   createdAt: any; // Firestore Timestamp
@@ -174,5 +180,51 @@ export interface Story {
   isSequel?: boolean; // Flag indicating if it's a sequel
   parentStoryId?: string; // ID of the parent story if it's a sequel
   // Add other relevant fields as needed
+}
+
+// Profile interface (simplified, see profile.ts for full details)
+export interface Profile {
+  id: string;
+  name: string;
+  age: number;
+  language: string;
+  readingLevel: 'beginner' | 'intermediate' | 'advanced';
+  avatar: string;
+  gender: 'male' | 'female' | 'other';
+  characterSets: CharacterSet[];
+  createdAt?: any; // Assuming createdAt exists based on query
+}
+
+// CharacterSet interface (simplified, see profile.ts for full details)
+export interface CharacterSet {
+  id: string;
+  name: string;
+  characters: any[]; // Simplified character type
+}
+
+// Story Generation Request (to be created by app, processed by backend)
+export interface StoryGenerationRequest {
+  id: string; // Firestore document ID
+  userId: string;
+  kidId: string; // Kept as kidId based on schema doc, might need alignment
+  prompt: string;
+  modelId?: string; // Optional: Specify a specific model from ai_models
+  // Add other parameters like desired length, style, etc. if needed
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  createdAt: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
+  resultStoryId?: string; // ID of the generated story document in users/{userId}/kids/{kidId}/stories/
+  errorMessage?: string; // If status is 'failed'
+}
+
+// AI Settings Interface (New)
+export interface AISettings {
+  defaultStoryModelId: string; // ID from ai_models collection
+  defaultSequelModelId: string; // ID from ai_models collection
+  fallbackStoryModelId?: string; // Optional fallback
+  fallbackSequelModelId?: string; // Optional fallback
+  defaultStoryPrompt: string; // Default system prompt for stories
+  defaultSequelPrompt: string; // Default system prompt for sequels
+  updatedAt?: any; // Firestore Timestamp
 }
 
