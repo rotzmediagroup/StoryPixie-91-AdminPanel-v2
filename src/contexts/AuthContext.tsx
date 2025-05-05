@@ -28,6 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     console.log('[AuthContext] Setting up Firebase auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      console.log('[AuthContext] Auth state changed. Setting isLoading to true.');
       setIsLoading(true); // Set loading true while processing
       setAuthError(null); // Clear previous errors on new auth state change
       setFirebaseUser(fbUser); // Store the raw Firebase user
@@ -38,10 +39,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try { // Outer try to ensure finally block runs
         if (fbUser) {
           // User is signed in according to Firebase
+          console.log('[AuthContext] Firebase user signed in:', fbUser.uid);
           try {
-            console.log('[AuthContext] Firebase user signed in:', fbUser.uid);
+            console.log('[AuthContext] Attempting to fetch admin user data for UID:', fbUser.uid);
             // Fetch corresponding admin user data from Firestore
             const adminUserData = await getAdminUserData(fbUser.uid);
+            console.log('[AuthContext] getAdminUserData returned:', adminUserData);
 
             // Check if admin user data exists AND has a valid admin role OR isAdmin flag
             // Use the role from getAdminUserData which already handles isAdmin: true logic
@@ -53,7 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else {
               // Firebase user exists, but no corresponding admin user found or role is invalid
               const reason = adminUserData ? `Invalid role ('${adminUserData.role}')` : 'Admin user data not found';
-              console.warn(`[AuthContext] Firebase user exists but is not a valid admin user. Reason: ${reason}`);
+              console.warn(`[AuthContext] Firebase user exists but is not a valid admin user. Reason: ${reason}. Logging out.`);
               errorToSet = `Authentication failed: ${reason}. Ensure user exists in Firestore with 'admin' or 'super_admin' role, or 'isAdmin: true'.`; // Set error state
               await logoutUser(); // Log out the Firebase user
             }
@@ -61,6 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('[AuthContext] Error fetching admin user data:', error);
             errorToSet = error instanceof Error ? `Error fetching user data: ${error.message}` : 'An unknown error occurred fetching user data.'; // Set error state
             try {
+              console.log('[AuthContext] Attempting logout due to fetch error.');
               await logoutUser(); // Attempt to log out on error
             } catch (logoutError) {
               console.error('[AuthContext] Error during logout after fetch error:', logoutError);
@@ -72,6 +76,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } finally {
         // Update state outside the try/catch to ensure isLoading is always set
+        console.log('[AuthContext] Entering finally block. Updating state.');
         setCurrentUser(userToSet);
         setIsAuthenticated(authenticated);
         setAuthError(errorToSet);

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -21,17 +20,16 @@ export const LayoutProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Try to get saved state from localStorage
     const savedState = localStorage.getItem(SIDEBAR_STATE_KEY);
     // If we have a saved state, use it; otherwise use false (collapsed) as default
+    // On mobile, always default to closed regardless of saved state
+    if (isMobile) return false;
     return savedState !== null ? savedState === 'true' : false;
   });
   
-  // Auto-collapse sidebar on mobile
-  useEffect(() => {
-    if (isMobile) {
-      setIsSidebarOpen(false);
-    }
-  }, [isMobile]);
-  
-  // Save sidebar state to localStorage whenever it changes
+  // Removed the useEffect that forced sidebar closed on mobile resize.
+  // The initial state now handles defaulting to closed on mobile load.
+
+  // Save sidebar state to localStorage whenever it changes, but maybe not on mobile?
+  // Let's keep saving it for now, user might want persistence even on mobile if they expand it.
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STATE_KEY, isSidebarOpen.toString());
   }, [isSidebarOpen]);

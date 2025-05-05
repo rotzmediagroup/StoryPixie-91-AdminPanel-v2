@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Menu, Search, User } from 'lucide-react';
+import { Bell, Search, User } from 'lucide-react'; // Removed Menu import
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,45 +10,30 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+// Removed Sheet imports: Sheet, SheetContent, SheetTrigger
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useLayout } from '@/contexts/LayoutContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import logo from "@/assets/logo.png";
-import { cn } from '@/lib/utils'; // Added missing import
+import { cn } from '@/lib/utils';
 
-// Import Sidebar content without the full Sidebar component wrapper
-// Assuming SidebarContent exists and is correctly implemented
-import { SidebarContent } from './SidebarContent'; 
+// SidebarContent import is no longer needed here as the Sheet is removed
+// import { SidebarContent } from './SidebarContent'; 
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
-  const { isSidebarOpen, toggleSidebar } = useLayout(); // toggleSidebar might not be used here
+  const { isSidebarOpen, toggleSidebar } = useLayout(); // toggleSidebar might be used for a manual toggle button later
   const [searchQuery, setSearchQuery] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Removed mobileMenuOpen state
   const isMobile = useIsMobile();
 
   return (
     <header className="border-b border-border bg-background sticky top-0 z-10">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         <div className="flex items-center">
-          {isMobile && (
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden mr-2">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-[250px]">
-                <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-                  {/* Ensure SidebarContent is rendered correctly */}
-                  <SidebarContent /> 
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
+          {/* Removed Sheet and Hamburger Button */}
           
           <div className="h-8 w-auto mr-3 hidden md:block">
             <img 
@@ -57,9 +42,10 @@ const Header = () => {
               className="h-full object-contain" 
             />
           </div>
+          {/* Adjusted title styling slightly for mobile consistency */}
           <h1 className={cn(
             "text-xl font-semibold",
-            isMobile ? "text-center" : ""
+            isMobile ? "ml-2" : ""
           )}>Story Pixie Admin</h1>
         </div>
 
@@ -160,4 +146,3 @@ const Header = () => {
 };
 
 export default Header;
-

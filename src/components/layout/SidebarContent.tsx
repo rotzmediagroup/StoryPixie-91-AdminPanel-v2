@@ -45,9 +45,12 @@ const NavItem = ({ icon: Icon, label, href, active, minimized, roles = [] }: Nav
 
   // On mobile, close sidebar after navigation
   const handleClick = () => {
-    if (isMobile) {
-      closeSidebar();
-    }
+    // Keep sidebar open on mobile if user explicitly navigates within it
+    // Only close if navigating away or if it's preferred behavior
+    // Let's keep it open for now, user can collapse manually
+    // if (isMobile) {
+    //   closeSidebar();
+    // }
   };
 
   return (
@@ -80,6 +83,9 @@ export const SidebarContent: React.FC = () => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
+  // Determine if the sidebar should be minimized based on context and mobile status
+  const minimized = !isSidebarOpen;
+
   return (
     <>
       {/* Logo and Brand */}
@@ -92,24 +98,24 @@ export const SidebarContent: React.FC = () => {
               className="h-full object-contain"
             />
           </div>
-          {(isSidebarOpen || isMobile) && (
+          {/* Show title only when sidebar is open */}
+          {isSidebarOpen && (
             <span className="text-lg font-medium ml-2 text-sidebar-foreground">Story Pixie</span>
           )}
         </div>
-        {!isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleSidebar}
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
-          >
-            {isSidebarOpen ? (
-              <ChevronLeft className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        )}
+        {/* Always show toggle button */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          {isSidebarOpen ? (
+            <ChevronLeft className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </Button>
       </div>
 
       <Separator className="bg-sidebar-border" />
@@ -122,56 +128,56 @@ export const SidebarContent: React.FC = () => {
             label="Dashboard" 
             href="/" 
             active={isActive("/")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
           <NavItem 
             icon={BarChart3} 
             label="Analytics" 
             href="/analytics" 
             active={isActive("/analytics")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
           <NavItem 
             icon={Users} 
             label="Users" 
             href="/users" 
             active={isActive("/users")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           /> 
           <NavItem 
             icon={BookOpen} 
             label="Stories" 
             href="/stories" 
             active={isActive("/stories")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
           <NavItem 
             icon={Shield} 
             label="Moderation" 
             href="/moderation" 
             active={isActive("/moderation")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
           <NavItem 
             icon={Wand2} 
             label="AI Models" 
             href="/ai-models" 
             active={isActive("/ai-models")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
           <NavItem 
             icon={SlidersHorizontal} // Changed icon for AI Settings
             label="AI Settings" 
             href="/ai-settings" 
             active={isActive("/ai-settings")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
            <NavItem 
             icon={Settings} 
             label="Admin Settings" // Renamed for clarity
             href="/settings" 
             active={isActive("/settings")} 
-            minimized={!isSidebarOpen && !isMobile} 
+            minimized={minimized} 
           />
         </div>
       </ScrollArea>
@@ -180,9 +186,9 @@ export const SidebarContent: React.FC = () => {
       <div className="mt-auto border-t border-sidebar-border p-2">
         <div className={cn(
           "flex items-center gap-2 p-2 rounded-md",
-          (isSidebarOpen || isMobile) ? "justify-between" : "justify-center"
+          isSidebarOpen ? "justify-between" : "justify-center"
         )}>
-          {(isSidebarOpen || isMobile) && currentUser ? (
+          {isSidebarOpen && currentUser ? (
             <>
               <div className="flex items-center">
                 <Avatar className="h-8 w-8">
@@ -206,7 +212,7 @@ export const SidebarContent: React.FC = () => {
                 <LogOut className="h-4 w-4" />
               </Button>
             </>
-          ) : !isMobile ? ( // Show logout icon even when minimized on desktop
+          ) : currentUser ? ( // Show logout icon even when minimized if user exists
             <Button 
               variant="ghost" 
               size="icon" 
@@ -215,10 +221,9 @@ export const SidebarContent: React.FC = () => {
             >
               <LogOut className="h-4 w-4" />
             </Button>
-          ) : null /* Don't show anything if not logged in on mobile */}
+          ) : null /* Don't show anything if not logged in */}
         </div>
       </div>
     </>
   );
 };
-
