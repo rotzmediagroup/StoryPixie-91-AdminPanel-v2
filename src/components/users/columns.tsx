@@ -9,9 +9,9 @@ import {
   DropdownMenuItem, 
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
-  DropdownMenuTrigger,
-  DialogTrigger // Added DialogTrigger for shadcn/ui Dialog
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { DialogTrigger } from "@/components/ui/dialog"; // Corrected import for DialogTrigger
 import { Badge } from "@/components/ui/badge";
 import { updateUserStatus } from "@/lib/firestoreUtils"; 
 import { toast } from "@/components/ui/use-toast"; // Corrected import path for toast
