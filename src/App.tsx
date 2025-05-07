@@ -21,7 +21,6 @@ import SystemHealth from "@/pages/SystemHealth";
 import ErrorLog from "@/pages/ErrorLog";
 import NotFound from "@/pages/NotFound";
 import DebugAuth from "@/pages/DebugAuth";
-import TempSuperAdminSignup from "@/pages/TempSuperAdminSignup"; // Added import
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,9 +82,6 @@ const AppRoutes = () => {
       <Route path="/debug-auth" element={
         <DebugAuth />
       } />
-
-      {/* Temporary route for super admin signup - REMOVE AFTER USE */}
-      <Route path="/temp-super-admin-signup" element={<TempSuperAdminSignup />} />
 
       {/* All authenticated routes go under AdminLayout */}
       <Route element={
