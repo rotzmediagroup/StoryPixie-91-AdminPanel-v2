@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth, db } from '@/config/firebase'; // Assuming firebase config is here
+import { auth, db } from '@/lib/firebase'; // Assuming firebase config is here
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button'; // Assuming Button component exists
