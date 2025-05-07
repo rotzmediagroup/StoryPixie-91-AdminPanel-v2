@@ -1,5 +1,6 @@
+import React, { useState } from "react"; // Added useState
 import { ColumnDef } from "@tanstack/react-table";
-import { User, DisplayUserStatus } from "@/types"; // Updated to DisplayUserStatus
+import { User, DisplayUserStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,15 +12,14 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { DialogTrigger } from "@/components/ui/dialog"; // Corrected import for DialogTrigger
+// DialogTrigger is removed as we will control the dialog state manually
 import { Badge } from "@/components/ui/badge";
 import { updateUserStatus } from "@/lib/firestoreUtils"; 
-import { toast } from "@/components/ui/use-toast"; // Corrected import path for toast
-import { Timestamp } from "firebase/firestore"; // Import Timestamp
+import { toast } from "@/components/ui/use-toast";
+import { Timestamp } from "firebase/firestore";
 
 import { EditPixieDustDialog } from "./EditPixieDustDialog"; 
 
-// Helper function to format Firestore Timestamp
 const formatDate = (timestamp: Timestamp | undefined): string => {
   if (!timestamp || typeof timestamp.toDate !== "function") return "N/A";
   try {
@@ -36,29 +36,23 @@ const formatDate = (timestamp: Timestamp | undefined): string => {
   }
 };
 
-// Function to handle toggling user active status (replaces ban/unban)
 const handleToggleUserActiveStatus = async (userId: string, currentIsActive: boolean | undefined) => {
-  const newIsActive = !(currentIsActive === true); // Toggle the boolean value
+  const newIsActive = !(currentIsActive === true);
   const actionText = newIsActive ? "Activating" : "Deactivating";
   const successText = newIsActive ? "activated" : "deactivated";
   
   toast({ title: `${actionText} user...`, description: `Attempting to update status for user ${userId}.` });
   
-  // Assuming updateUserStatus can be adapted or a new function is created for isActive
-  // For now, let's assume updateUserStatus can handle a boolean for an "isActive" field.
-  // This might require a change in firestoreUtils.ts if updateUserStatus expects a string status.
-  // For simplicity, we will assume it works or will be adapted.
-  // Ideally, a dedicated function like `updateUserIsActive(userId: string, isActive: boolean)` would be better.
-  const success = await updateUserStatus(userId, newIsActive ? "active" : "blocked"); // Temporary mapping
+  const success = await updateUserStatus(userId, newIsActive ? "active" : "blocked"); 
   
   if (success) {
     toast({ title: `User ${successText}`, description: `User ${userId} has been successfully ${successText}. Refresh may be needed.` });
+    // TODO: Ideally, trigger a data refresh here instead of relying on manual refresh
   } else {
     toast({ title: `Failed to ${actionText.toLowerCase()} user`, description: `Could not update status for user ${userId}.`, variant: "destructive" });
   }
 };
 
-// Define columns for the user table, aligned with the new User type
 export const userColumns: ColumnDef<User>[] = [
   {
     id: "select",
@@ -92,14 +86,22 @@ export const userColumns: ColumnDef<User>[] = [
       </Button>
     ),
     cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+    filterFn: (row, id, value) => {
+      const email = row.getValue(id) as string;
+      return email.toLowerCase().includes((value as string).toLowerCase());
+    },
   },
   {
-    accessorKey: "displayName", // Changed from "name"
+    accessorKey: "displayName",
     header: "Display Name",
     cell: ({ row }) => <div>{row.getValue("displayName") || "N/A"}</div>,
+    filterFn: (row, id, value) => {
+      const displayName = row.getValue(id) as string || "";
+      return displayName.toLowerCase().includes((value as string).toLowerCase());
+    },
   },
   {
-    accessorKey: "createdAt", // Use Firestore Timestamp
+    accessorKey: "createdAt",
     header: ({ column }) => (
       <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
         Registered <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -108,7 +110,7 @@ export const userColumns: ColumnDef<User>[] = [
     cell: ({ row }) => <div>{formatDate(row.getValue("createdAt"))}</div>,
   },
   {
-    accessorKey: "lastLoginAt", // Use Firestore Timestamp
+    accessorKey: "lastLoginAt",
     header: ({ column }) => (
       <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
         Last Login <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -118,7 +120,7 @@ export const userColumns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "pixieDust.purple",
-    header: "Purple Dust",
+    header: () => <div className="text-center">Purple Dust</div>, // Centered header
     cell: ({ row }) => {
       const pixieDust = row.original.pixieDust;
       return <div className="text-center">{pixieDust?.purple ?? 0}</div>;
@@ -126,14 +128,14 @@ export const userColumns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "pixieDust.gold",
-    header: "Gold Dust",
+    header: () => <div className="text-center">Gold Dust</div>, // Centered header
     cell: ({ row }) => {
       const pixieDust = row.original.pixieDust;
       return <div className="text-center">{pixieDust?.gold ?? 0}</div>;
     },
   },
   {
-    accessorKey: "isActive", // Use isActive boolean from new User type
+    accessorKey: "isActive",
     header: "Status",
     cell: ({ row }) => {
       const isActive = row.getValue("isActive") as boolean;
@@ -145,7 +147,7 @@ export const userColumns: ColumnDef<User>[] = [
     },
     filterFn: (row, id, value) => {
       const isActive = row.getValue(id) as boolean;
-      const filterValue = value as string[]; // Assuming filter value is an array of strings like ["active", "inactive"]
+      const filterValue = value as string[];
       const currentStatusString = isActive ? "active" : "inactive";
       return filterValue.includes(currentStatusString);
     },
@@ -168,13 +170,14 @@ export const userColumns: ColumnDef<User>[] = [
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => {
+    cell: function Cell({ row }) { // Changed to a function component to use hooks
       const user = row.original;
       const isActive = user.isActive;
       const toggleActionText = isActive ? "Deactivate User" : "Activate User";
+      const [isPixieDustDialogOpen, setIsPixieDustDialogOpen] = useState(false);
 
       return (
-        <EditPixieDustDialog user={user} onSuccess={() => { /* TODO: Trigger data refresh */ }}>
+        <>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -186,11 +189,9 @@ export const userColumns: ColumnDef<User>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>Copy User ID</DropdownMenuItem>
               <DropdownMenuSeparator />
-              {/* <DropdownMenuItem>View User Details (NYI)</DropdownMenuItem> */}
-              {/* <DropdownMenuItem>Edit User (NYI)</DropdownMenuItem> */}
-              <DialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit Pixie Dust</DropdownMenuItem>
-              </DialogTrigger>
+              <DropdownMenuItem onSelect={() => setIsPixieDustDialogOpen(true)}>
+                Edit Pixie Dust
+              </DropdownMenuItem>
               <DropdownMenuItem 
                 className={isActive ? "text-destructive" : "text-green-600"}
                 onClick={() => handleToggleUserActiveStatus(user.id, user.isActive)}
@@ -199,7 +200,17 @@ export const userColumns: ColumnDef<User>[] = [
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </EditPixieDustDialog>
+          <EditPixieDustDialog 
+            user={user} 
+            open={isPixieDustDialogOpen} 
+            onOpenChange={setIsPixieDustDialogOpen} 
+            onSuccess={() => {
+              // TODO: Implement data refresh for the table after successful update
+              // This might involve refetching users or updating the local state
+              console.log("Pixie dust updated, table refresh needed.");
+            }}
+          />
+        </>
       );
     },
   },
