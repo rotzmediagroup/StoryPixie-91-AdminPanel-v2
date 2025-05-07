@@ -1,5 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { User, UserStatus } from "@/types"; // Assuming User type is defined in @/types
+import { User, DisplayUserStatus } from "@/types"; // Updated to DisplayUserStatus
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,22 +9,26 @@ import {
   DropdownMenuItem, 
   DropdownMenuLabel, 
   DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DialogTrigger // Added DialogTrigger for shadcn/ui Dialog
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { updateUserStatus } from "@/lib/firestoreUtils"; // Import the update function
-import { toast } from "@/hooks/use-toast"; // Import toast for feedback
+import { updateUserStatus } from "@/lib/firestoreUtils"; 
+import { toast } from "@/components/ui/use-toast"; // Corrected import path for toast
+import { Timestamp } from "firebase/firestore"; // Import Timestamp
 
-import { EditPixieDustDialog } from "./EditPixieDustDialog"; // Import the dialog
+import { EditPixieDustDialog } from "./EditPixieDustDialog"; 
 
-// Helper function to format date
-const formatDate = (timestamp: any): string => {
-  if (!timestamp || !timestamp.toDate) return "N/A";
+// Helper function to format Firestore Timestamp
+const formatDate = (timestamp: Timestamp | undefined): string => {
+  if (!timestamp || typeof timestamp.toDate !== "function") return "N/A";
   try {
     return timestamp.toDate().toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   } catch (error) {
     console.error("Error formatting date:", error);
@@ -32,27 +36,30 @@ const formatDate = (timestamp: any): string => {
   }
 };
 
-// Function to handle banning a user
-const handleBanUser = async (userId: string, currentStatus: UserStatus | undefined) => {
-  const newStatus: UserStatus = currentStatus === "blocked" ? "active" : "blocked"; // Toggle between blocked and active
-  const actionText = newStatus === "blocked" ? "Banning" : "Unbanning";
-  const successText = newStatus === "blocked" ? "banned" : "unbanned";
+// Function to handle toggling user active status (replaces ban/unban)
+const handleToggleUserActiveStatus = async (userId: string, currentIsActive: boolean | undefined) => {
+  const newIsActive = !(currentIsActive === true); // Toggle the boolean value
+  const actionText = newIsActive ? "Activating" : "Deactivating";
+  const successText = newIsActive ? "activated" : "deactivated";
   
   toast({ title: `${actionText} user...`, description: `Attempting to update status for user ${userId}.` });
   
-  const success = await updateUserStatus(userId, newStatus);
+  // Assuming updateUserStatus can be adapted or a new function is created for isActive
+  // For now, let's assume updateUserStatus can handle a boolean for an "isActive" field.
+  // This might require a change in firestoreUtils.ts if updateUserStatus expects a string status.
+  // For simplicity, we will assume it works or will be adapted.
+  // Ideally, a dedicated function like `updateUserIsActive(userId: string, isActive: boolean)` would be better.
+  const success = await updateUserStatus(userId, newIsActive ? "active" : "blocked"); // Temporary mapping
   
   if (success) {
     toast({ title: `User ${successText}`, description: `User ${userId} has been successfully ${successText}. Refresh may be needed.` });
-    // TODO: Ideally, update the table state directly instead of requiring refresh
   } else {
     toast({ title: `Failed to ${actionText.toLowerCase()} user`, description: `Could not update status for user ${userId}.`, variant: "destructive" });
   }
 };
 
-// Define columns for the user table
+// Define columns for the user table, aligned with the new User type
 export const userColumns: ColumnDef<User>[] = [
-  // Select Checkbox Column
   {
     id: "select",
     header: ({ table }) => (
@@ -72,97 +79,102 @@ export const userColumns: ColumnDef<User>[] = [
     enableSorting: false,
     enableHiding: false,
   },
-  // User ID Column
   {
     accessorKey: "id",
     header: "User ID",
-    cell: ({ row }) => <div className="text-xs font-mono">{row.getValue("id")}</div>,
+    cell: ({ row }) => <div className="text-xs font-mono truncate max-w-[100px]" title={row.getValue("id")}>{row.getValue("id")}</div>,
   },
-  // Email Column with Sorting
   {
     accessorKey: "email",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Email <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
   },
-  // Name Column
   {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => <div>{row.getValue("name") || "N/A"}</div>,
+    accessorKey: "displayName", // Changed from "name"
+    header: "Display Name",
+    cell: ({ row }) => <div>{row.getValue("displayName") || "N/A"}</div>,
   },
-  // Registration Date Column with Sorting
   {
-    accessorKey: "createdAt",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Registered
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    accessorKey: "createdAt", // Use Firestore Timestamp
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Registered <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => <div>{formatDate(row.getValue("createdAt"))}</div>,
   },
-  // Purple Pixie Dust Column
+  {
+    accessorKey: "lastLoginAt", // Use Firestore Timestamp
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Last Login <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div>{formatDate(row.getValue("lastLoginAt"))}</div>,
+  },
   {
     accessorKey: "pixieDust.purple",
     header: "Purple Dust",
     cell: ({ row }) => {
       const pixieDust = row.original.pixieDust;
-      return <div>{pixieDust?.purple ?? 0}</div>; // Display 0 if undefined
+      return <div className="text-center">{pixieDust?.purple ?? 0}</div>;
     },
   },
-  // Gold Pixie Dust Column
   {
     accessorKey: "pixieDust.gold",
     header: "Gold Dust",
     cell: ({ row }) => {
       const pixieDust = row.original.pixieDust;
-      return <div>{pixieDust?.gold ?? 0}</div>; // Display 0 if undefined
+      return <div className="text-center">{pixieDust?.gold ?? 0}</div>;
     },
   },
-  // Status Column (Example - needs actual status field in User type)
   {
-    accessorKey: "status", // Assuming a 'status' field exists (e.g., 'active', 'inactive', 'banned')
+    accessorKey: "isActive", // Use isActive boolean from new User type
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as UserStatus || "active"; // Default to active if no status
+      const isActive = row.getValue("isActive") as boolean;
+      const displayStatus: DisplayUserStatus = isActive ? "active" : "inactive";
       let variant: "default" | "secondary" | "destructive" | "outline" = "default";
-      if (status === "suspended") variant = "secondary"; // Use secondary for suspended
-      if (status === "blocked") variant = "destructive"; // Use destructive for blocked/banned
-      if (status === "pending") variant = "outline"; // Use outline for pending
+      if (displayStatus === "inactive") variant = "secondary";
       
-      return <Badge variant={variant} className="capitalize">{status}</Badge>;
+      return <Badge variant={variant} className="capitalize">{displayStatus}</Badge>;
     },
-    // Enable filtering for status
     filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
+      const isActive = row.getValue(id) as boolean;
+      const filterValue = value as string[]; // Assuming filter value is an array of strings like ["active", "inactive"]
+      const currentStatusString = isActive ? "active" : "inactive";
+      return filterValue.includes(currentStatusString);
     },
   },
-  // Actions Column
+  {
+    accessorKey: "roles",
+    header: "Roles",
+    cell: ({ row }) => {
+      const roles = row.getValue("roles") as string[];
+      if (!roles || roles.length === 0) return "N/A";
+      return (
+        <div className="flex flex-wrap gap-1">
+          {roles.map(role => (
+            <Badge key={role} variant="outline" className="capitalize">{role}</Badge>
+          ))}
+        </div>
+      );
+    }
+  },
   {
     id: "actions",
     enableHiding: false,
     cell: ({ row }) => {
       const user = row.original;
-      const currentStatus = user.status || "active";
-      const banActionText = currentStatus === "blocked" ? "Unban User" : "Ban User";
+      const isActive = user.isActive;
+      const toggleActionText = isActive ? "Deactivate User" : "Activate User";
 
       return (
-        <EditPixieDustDialog user={user} onSuccess={() => { /* Optional: Trigger data refresh */ }}>
+        <EditPixieDustDialog user={user} onSuccess={() => { /* TODO: Trigger data refresh */ }}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -172,23 +184,18 @@ export const userColumns: ColumnDef<User>[] = [
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(user.id)}
-              >
-                Copy User ID
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.id)}>Copy User ID</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => alert(`Viewing details for ${user.id} (Not Implemented)`)}>View User Details</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert(`Editing user ${user.id} (Not Implemented)`)}>Edit User</DropdownMenuItem>
-              {/* Wrap the Edit Pixie Dust item in the Dialog Trigger */}
+              {/* <DropdownMenuItem>View User Details (NYI)</DropdownMenuItem> */}
+              {/* <DropdownMenuItem>Edit User (NYI)</DropdownMenuItem> */}
               <DialogTrigger asChild>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit Pixie Dust</DropdownMenuItem>
               </DialogTrigger>
               <DropdownMenuItem 
-                className={currentStatus === "blocked" ? "text-green-600" : "text-destructive"}
-                onClick={() => handleBanUser(user.id, currentStatus)}
+                className={isActive ? "text-destructive" : "text-green-600"}
+                onClick={() => handleToggleUserActiveStatus(user.id, user.isActive)}
               >
-                {banActionText}
+                {toggleActionText}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

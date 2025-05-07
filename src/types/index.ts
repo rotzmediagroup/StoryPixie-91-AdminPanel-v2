@@ -1,23 +1,52 @@
+import { Timestamp } from "firebase/firestore";
+
+// Corresponds to the structure in Firestore `users` collection
 export interface User {
-  id: string;
+  id: string; // Document ID from Firestore
   email: string;
-  name: string;
-  role: UserRole;
-  platform: UserPlatform | UserPlatform[];
-  registrationDate: string;
-  lastLoginDate: string;
-  status: UserStatus;
+  displayName?: string; // From Firestore
+  photoURL?: string | null; // From Firestore
+  
+  isActive: boolean; // From Firestore
+  isAdmin: boolean; // From Firestore
+  isEmailVerified: boolean; // From Firestore
+  isWizardComplete: boolean; // From Firestore
+
+  createdAt: Timestamp; // From Firestore
+  lastLoginAt: Timestamp; // From Firestore
+  updatedAt?: Timestamp; // Should be in Firestore, good practice
+
+  roles: string[]; // e.g., ["user"], ["admin"], ["super-admin"]
+
   pixieDust: {
     purple: number;
     gold: number;
   };
-  profileImage?: string;
-  subscription?: {
-    plan: string;
-    status: string;
-    renewalDate?: string;
+
+  subscription: {
+    status: string; // e.g., "free", "premium", "cancelled"
+    planId?: string | null;
+    provider?: string | null;
+    providerSubscriptionId?: string | null;
+    currentPeriodStart?: Timestamp | null;
+    currentPeriodEnd?: Timestamp | null;
+    trialEnd?: Timestamp | null;
+    cancelAtPeriodEnd?: boolean;
+    canceledAt?: Timestamp | null;
+    autoRenew?: boolean;
+    updatedAt?: Timestamp; // Last update to subscription sub-document
   };
-  createdAt?: any; // Added createdAt based on usage in firestoreUtils
+
+  purchaseHistory?: Array<any>; // Define more strictly if needed
+  migrationFlags?: Record<string, any>; // Or define more strictly
+  
+  // Fields from old User type that are NOT directly in the main user document from app signup:
+  // name: string; // Replaced by displayName
+  // role: UserRole; // Replaced by roles array and isAdmin boolean
+  // platform: UserPlatform | UserPlatform[]; // Not in user doc
+  // registrationDate: string; // Replaced by createdAt (Timestamp)
+  // lastLoginDate: string; // Replaced by lastLoginAt (Timestamp)
+  // status: UserStatus; // Replaced/Represented by isActive (boolean) and potentially roles
 }
 
 export interface Session {
@@ -58,9 +87,18 @@ export interface Session {
   };
 }
 
-export type UserRole = 'super_admin' | 'admin' | 'content_moderator' | 'support_staff' | 'analytics_viewer' | 'observer';
-export type UserPlatform = 'web' | 'ios' | 'android';
-export type UserStatus = 'active' | 'suspended' | 'blocked' | 'pending';
+// UserRole is now covered by the `roles: string[]` and `isAdmin: boolean` in the User interface.
+// If specific role strings are needed for type checking elsewhere, they can be defined as a union type:
+export type DefinedUserRole = "user" | "moderator" | "admin" | "super-admin";
+
+export type UserPlatform = "web" | "ios" | "android";
+
+// UserStatus is now primarily represented by `isActive: boolean` in the User interface.
+// If a more granular string status is needed for UI that derives from isActive or roles, 
+// it can be handled in the component or a helper function.
+// For example, the `userColumns.tsx` might derive a display status.
+export type DisplayUserStatus = "active" | "inactive" | "blocked" | "pending_verification";
+
 
 export interface AIPromptTemplate {
   id: string;
@@ -79,17 +117,17 @@ export interface AIModel {
   provider: string;
   version: string;
   active: boolean;
-  apiKey?: string; // Added API Key (ensure secure storage/access)
-  costPerToken?: number; // Made optional
-  maxTokens?: number; // Made optional
-  avgResponseTime?: number; // Made optional
-  createdAt?: any; // Added from firestoreUtils
-  updatedAt?: any; // Added from firestoreUtils
+  apiKey?: string; 
+  costPerToken?: number; 
+  maxTokens?: number; 
+  avgResponseTime?: number; 
+  createdAt?: Timestamp; 
+  updatedAt?: Timestamp; 
 }
 
 export interface SystemHealth {
   service: string;
-  status: 'operational' | 'degraded' | 'down';
+  status: "operational" | "degraded" | "down";
   lastChecked: string;
   responseTime?: number;
   error?: string;
@@ -98,8 +136,8 @@ export interface SystemHealth {
 export interface AdminUser {
   id: string;
   email: string;
-  name: string;
-  role: UserRole;
+  name: string; // This might be displayName for consistency
+  role: DefinedUserRole; // Using the new DefinedUserRole
   lastLogin?: string;
   profileImage?: string;
   mfa?: {
@@ -122,7 +160,7 @@ export interface AppMetrics {
   };
   errorRate: {
     current: number;
-    trend: 'up' | 'down' | 'stable';
+    trend: "up" | "down" | "stable";
   };
   averageResponseTime: number;
   userRetention: {
@@ -140,7 +178,6 @@ export interface DashboardStats {
   averageSessionTime: number;
 }
 
-// Admin user activity log entry
 export interface AdminActivityLog {
   id: string;
   adminId: string;
@@ -152,79 +189,77 @@ export interface AdminActivityLog {
   userAgent?: string;
 }
 
-// Admin invitation
 export interface AdminInvitation {
   id: string;
   email: string;
-  role: UserRole;
-  status: 'pending' | 'accepted' | 'expired';
+  role: DefinedUserRole;
+  status: "pending" | "accepted" | "expired";
   createdAt: string;
   expiresAt: string;
   createdBy: string;
   token: string;
 }
 
-// Story interface
 export interface Story {
-  id: string; // Firestore document ID
-  userId: string; // ID of the user who owns the story
-  profileId: string; // ID of the profile the story belongs to (renamed from kidId)
+  id: string; 
+  userId: string; 
+  profileId: string; 
   title: string;
-  content: string; // The actual story text
-  createdAt: any; // Firestore Timestamp
-  status: 'pending' | 'generating' | 'completed' | 'failed' | 'flagged'; // Status of the story
-  prompt?: string; // The prompt used to generate the story
-  modelUsed?: string; // Which AI model generated the story
-  audioUrl?: string; // URL to the generated audio file
-  imageUrl?: string; // URL to the generated cover image
-  isSequel?: boolean; // Flag indicating if it's a sequel
-  parentStoryId?: string; // ID of the parent story if it's a sequel
-  // Add other relevant fields as needed
+  content: string; 
+  createdAt: Timestamp; 
+  status: "pending" | "generating" | "completed" | "failed" | "flagged"; 
+  prompt?: string; 
+  modelUsed?: string; 
+  audioUrl?: string; 
+  imageUrl?: string; 
+  isSequel?: boolean; 
+  parentStoryId?: string; 
 }
 
-// Profile interface (simplified, see profile.ts for full details)
 export interface Profile {
   id: string;
   name: string;
   age: number;
   language: string;
-  readingLevel: 'beginner' | 'intermediate' | 'advanced';
+  readingLevel: "beginner" | "intermediate" | "advanced";
   avatar: string;
-  gender: 'male' | 'female' | 'other';
+  gender: "male" | "female" | "other";
   characterSets: CharacterSet[];
-  createdAt?: any; // Assuming createdAt exists based on query
+  createdAt?: Timestamp; 
 }
 
-// CharacterSet interface (simplified, see profile.ts for full details)
 export interface CharacterSet {
   id: string;
   name: string;
-  characters: any[]; // Simplified character type
+  characters: any[]; 
 }
 
-// Story Generation Request (to be created by app, processed by backend)
 export interface StoryGenerationRequest {
-  id: string; // Firestore document ID
+  id: string; 
   userId: string;
-  kidId: string; // Kept as kidId based on schema doc, might need alignment
+  kidId: string; 
   prompt: string;
-  modelId?: string; // Optional: Specify a specific model from ai_models
-  // Add other parameters like desired length, style, etc. if needed
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: any; // Firestore Timestamp
-  updatedAt?: any; // Firestore Timestamp
-  resultStoryId?: string; // ID of the generated story document in users/{userId}/kids/{kidId}/stories/
-  errorMessage?: string; // If status is 'failed'
+  modelId?: string; 
+  status: "pending" | "processing" | "completed" | "failed";
+  createdAt: Timestamp; 
+  updatedAt?: Timestamp; 
+  resultStoryId?: string; 
+  errorMessage?: string; 
 }
 
-// AI Settings Interface (New)
 export interface AISettings {
-  defaultStoryModelId: string; // ID from ai_models collection
-  defaultSequelModelId: string; // ID from ai_models collection
-  fallbackStoryModelId?: string; // Optional fallback
-  fallbackSequelModelId?: string; // Optional fallback
-  defaultStoryPrompt: string; // Default system prompt for stories
-  defaultSequelPrompt: string; // Default system prompt for sequels
-  updatedAt?: any; // Firestore Timestamp
+  defaultStoryModelId: string; 
+  defaultSequelModelId: string; 
+  fallbackStoryModelId?: string; 
+  fallbackSequelModelId?: string; 
+  defaultStoryPrompt: string; 
+  defaultSequelPrompt: string; 
+  updatedAt?: Timestamp; 
+}
+
+// For chart data, if used
+export interface ChartDataPoint {
+  date: string; // e.g., "YYYY-MM-DD"
+  value: number;
 }
 
